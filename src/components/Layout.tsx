@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { Home, Settings, CheckCircle2, TrendingUp, Sun, Moon, Monitor } from 'lucide-react'
+import { Home, Settings, TrendingUp, Sun, Moon, Monitor, Download } from 'lucide-react'
 
 export type Page = 'home' | 'settings' | 'trends' | 'habit-detail'
 
@@ -22,6 +22,34 @@ const NAV_ITEMS: { id: Exclude<Page, 'habit-detail'>; label: string; icon: typeo
 export default function Layout({ user, children, currentPage, onNavigate, theme, onThemeChange }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const sidebarRef = useRef<HTMLElement>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+
+  // PWA Install Prompt Listener
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      setDeferredPrompt(null);
+    }
+  };
 
   // Close sidebar on Escape key
   useEffect(() => {
@@ -69,8 +97,8 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
       >
         {/* Sidebar header */}
         <div className="flex items-center gap-3 px-5 py-4.5 border-b border-border">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent-dim">
-            <CheckCircle2 className="w-4 h-4 text-accent" />
+          <div className="flex items-center justify-center w-8 h-8 shrink-0">
+            <img src="/favicon.svg" alt="HabitNook Logo" className="w-full h-full object-contain" />
           </div>
           <span className="font-bold text-base text-text-primary tracking-tight">HabitNook</span>
 
@@ -132,14 +160,27 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
 
         {/* Top bar (page title + theme) */}
         <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-4.5 bg-surface-0/90 backdrop-blur-xl border-b border-border shadow-sm md:px-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <img src="/favicon.svg" alt="Logo" className="w-7 h-7 object-contain md:hidden" />
             <h1 className="text-lg font-bold text-text-primary capitalize tracking-tight">
               {currentPage === 'habit-detail' ? 'Habit Detail' : currentPage}
             </h1>
           </div>
 
-          {/* Theme Selector Segment Control */}
-          <div className="flex items-center gap-0.5 bg-surface-3 border border-border/80 p-0.5 rounded-xl">
+          <div className="flex items-center gap-3">
+            {deferredPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-accent hover:bg-accent/90 rounded-lg shadow-sm transition-all active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Install App</span>
+                <span className="sm:hidden">Install</span>
+              </button>
+            )}
+
+            {/* Theme Selector Segment Control */}
+            <div className="flex items-center gap-0.5 bg-surface-3 border border-border/80 p-0.5 rounded-xl">
             {(['light', 'dark', 'system'] as const).map((mode) => {
               const active = theme === mode
               const Icon = mode === 'light' ? Sun : mode === 'dark' ? Moon : Monitor
@@ -162,6 +203,7 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
                 </button>
               )
             })}
+            </div>
           </div>
         </header>
 
