@@ -163,7 +163,7 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
           <div className="flex items-center gap-3 md:gap-4">
             <img src="/favicon.svg" alt="Logo" className="w-7 h-7 object-contain md:hidden" />
             <h1 className="text-lg font-bold text-text-primary capitalize tracking-tight">
-              {currentPage === 'habit-detail' ? 'Habit Detail' : currentPage}
+              {currentPage === 'home' ? 'HabitNook' : currentPage === 'habit-detail' ? 'Habit Detail' : currentPage}
             </h1>
           </div>
 

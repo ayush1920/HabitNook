@@ -681,7 +681,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 >
                   <span className="z-10 leading-none">{isActiveDay ? day : ''}</span>
                   {isActiveDay && val === undefined && (
-                    <span className="text-[9px] text-text-tertiary/40 font-bold mt-0.5 font-mono select-none">?</span>
+                     <span className="text-[9px] text-text-tertiary/40 font-bold mt-0.5 font-mono select-none">?</span>
                   )}
                   {isTarget1Daily && val !== undefined && val !== -2 && isActiveDay && (
                     <div className="w-1 h-1 rounded-full mt-0.5" style={{ backgroundColor: val === 1 ? (habit.color || 'var(--accent)') : 'var(--color-danger)' }} />
@@ -1121,7 +1121,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
               <Calendar className="w-4 h-4 text-accent" />
               <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">12-Month Calendar</h3>
             </div>
-            <div className="analytics-section-body pt-5 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin">
+            <div className="analytics-section-body" style={{ paddingTop: '24px' }}>
               {renderTwelveMonthCalendar()}
             </div>
           </div>
@@ -1293,7 +1293,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 <Sparkles className="w-4 h-4 text-accent" />
                 <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Weekly Remarks & Memos Viewer</h3>
               </div>
-              <div className="analytics-section-body pt-5">
+              <div className="analytics-section-body" style={{ paddingTop: '24px' }}>
                 {(() => {
                   // Reconstruct timeline segmented into weeks based on target periods
                   const weekStartDates: Date[] = [];
@@ -1382,7 +1382,9 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                                 }`}
                                 title={`${wd.dateStr}: ${hasMemo ? 'Memo added' : 'No memo'}`}
                               >
-                                {wd.date.getDate()}
+                                <div className="w-full h-full flex items-center justify-center leading-none">
+                                  {wd.date.getDate()}
+                                </div>
                               </div>
                             </div>
                           );

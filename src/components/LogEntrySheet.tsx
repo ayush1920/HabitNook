@@ -22,9 +22,14 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
   const [remark, setRemark] = useState(''); // Short text remark/note for this date log
   const [loading, setLoading] = useState(false);
 
+  const [incrementValue, setIncrementValue] = useState(1);
+
   // Sync date when initialDate is passed or modal opens
   useEffect(() => {
     if (isOpen) {
+      const saved = localStorage.getItem('habitnook_log_increment');
+      setIncrementValue(saved ? parseFloat(saved) : 1);
+
       if (initialDate) {
         setDate(initialDate);
       } else {
@@ -100,11 +105,11 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
   if (!shouldRender || !habit) return null;
 
   const handleIncrement = () => {
-    setValue((v) => (v < 0 ? 0.5 : v + 0.5));
+    setValue((v) => (v < 0 ? incrementValue : v + incrementValue));
   };
 
   const handleDecrement = () => {
-    setValue((v) => (v < 0 ? 0 : Math.max(0, v - 0.5)));
+    setValue((v) => (v < 0 ? 0 : Math.max(0, v - incrementValue)));
   };
 
   const handleSave = () => {
@@ -282,7 +287,7 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
                 Logged Amount
               </span>
 
-              {/* Multiples of 0.5 adjusting buttons */}
+              {/* Custom step adjusting buttons */}
               <div className="flex items-center gap-6">
                 <button
                   type="button"

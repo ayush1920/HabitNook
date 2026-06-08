@@ -33,6 +33,15 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
   const [signOutError, setSignOutError] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [logIncrement, setLogIncrement] = useState<number>(() => {
+    const saved = localStorage.getItem('habitnook_log_increment')
+    return saved ? parseFloat(saved) : 1
+  })
+
+  const handleLogIncrementChange = (value: number) => {
+    setLogIncrement(value)
+    localStorage.setItem('habitnook_log_increment', String(value))
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -155,6 +164,37 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
                 >
                   <Icon className="w-3.5 h-3.5" />
                   <span>{label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Preferences Section ── */}
+      <section className="card p-5">
+        <h2 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-4">Preferences</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl bg-surface-3 text-xs">
+          <div>
+            <p className="text-text-primary font-bold text-sm">Log Increment Step</p>
+            <p className="text-text-secondary mt-1">Determine how much the plus/minus buttons adjust values.</p>
+          </div>
+          <div className="flex items-center gap-0.5 bg-surface-2 border border-border/60 p-0.5 rounded-xl self-start sm:self-center">
+            {([0.1, 0.5, 1, 2, 5] as const).map((step) => {
+              const active = logIncrement === step
+              return (
+                <button
+                  key={step}
+                  onClick={() => handleLogIncrementChange(step)}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer
+                    ${active 
+                      ? 'bg-accent/10 border border-accent/15 text-accent' 
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-3/80'
+                    }
+                  `}
+                >
+                  <span>{step}</span>
                 </button>
               )
             })}

@@ -499,7 +499,7 @@ export default function Home({
                   </h3>
                   
                   {/* Symmetrical Time Range Select Segment */}
-                  <div className="flex bg-surface-3 p-0.5 rounded-lg border border-border/80 text-[10px] sm:text-xs">
+                  <div className="flex bg-surface-3 p-0.5 rounded-lg border border-border/80 text-xs sm:text-sm self-start w-fit">
                     {[
                       { key: 'today', label: 'Today' },
                       { key: '1w', label: '1W' },
@@ -512,7 +512,7 @@ export default function Home({
                           e.stopPropagation();
                           setTimeRange(item.key as any);
                         }}
-                        className={`px-2.5 py-1 font-bold rounded-md transition-all whitespace-nowrap cursor-pointer ${
+                        className={`px-4 py-2 font-bold rounded-md transition-all whitespace-nowrap cursor-pointer ${
                           timeRange === item.key 
                             ? 'bg-surface-1 text-accent shadow-xs border border-border/20' 
                             : 'text-text-secondary hover:text-text-primary'
