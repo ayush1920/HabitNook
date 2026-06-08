@@ -492,14 +492,14 @@ export default function Home({
               </div>
 
               <div className="flex-1 space-y-1.5 min-w-0">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
                   <h3 className="text-base font-bold text-text-primary flex items-center gap-1.5 whitespace-nowrap">
                     <TrendingUp className="w-5 h-5 text-accent" />
                     Overall Health Score
                   </h3>
                   
                   {/* Symmetrical Time Range Select Segment */}
-                  <div className="flex bg-surface-3 p-0.5 rounded-lg border border-border/80 text-xs sm:text-sm self-start w-fit">
+                  <div className="flex bg-surface-3 p-0.5 rounded-lg border border-border/80 text-[11px] sm:text-xs self-start w-fit">
                     {[
                       { key: 'today', label: 'Today' },
                       { key: '1w', label: '1W' },
@@ -512,7 +512,7 @@ export default function Home({
                           e.stopPropagation();
                           setTimeRange(item.key as any);
                         }}
-                        className={`px-4 py-2 font-bold rounded-md transition-all whitespace-nowrap cursor-pointer ${
+                        className={`px-3.5 py-1.5 font-bold rounded-md transition-all whitespace-nowrap cursor-pointer ${
                           timeRange === item.key 
                             ? 'bg-surface-1 text-accent shadow-xs border border-border/20' 
                             : 'text-text-secondary hover:text-text-primary'
