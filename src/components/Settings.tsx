@@ -18,6 +18,7 @@ import {
   Monitor,
 } from 'lucide-react'
 import { db } from '../db/database'
+import { getPlatform, getInstallInstructions } from '../utils/platform'
 
 interface SettingsProps {
   user: User
@@ -201,6 +202,49 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
           </div>
         </div>
       </section>
+
+      {/* ── App Installation Guide ── */}
+      {(() => {
+        const platform = getPlatform();
+        const inst = getInstallInstructions(platform);
+        const formatText = (text: string) => {
+          const parts = text.split('**');
+          return parts.map((part, index) => {
+            return index % 2 === 1 ? <strong key={index}>{part}</strong> : part;
+          });
+        };
+        return (
+          <section className="card p-5">
+            <h2 className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-4">App Installation Guide</h2>
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl bg-surface-3 text-xs">
+                <div>
+                  <p className="text-text-primary font-bold text-sm">Device Platform</p>
+                  <p className="text-text-secondary mt-1">We've customized instructions for your detected platform.</p>
+                </div>
+                <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-accent/10 border border-accent/15 text-accent uppercase tracking-wide self-start sm:self-center">
+                  {inst.platformName}
+                </span>
+              </div>
+
+              <div className="bg-surface-2 border border-border rounded-xl p-4 text-xs space-y-2.5 font-medium text-text-primary">
+                <p className="font-bold text-accent text-[11px] uppercase tracking-wider">How to Install:</p>
+                {inst.steps.map((s) => (
+                  <div key={s.step} className="flex items-start gap-2.5">
+                    <span className="flex items-center justify-center w-4.5 h-4.5 rounded bg-surface-3 text-[11px] shrink-0 mt-0.5">{s.step}</span>
+                    <span className="leading-normal">
+                      {formatText(s.text)}
+                      {s.badge && (
+                        <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold ml-1.5">{s.badge}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── Profile Section ── */}
       <section className="card p-5">

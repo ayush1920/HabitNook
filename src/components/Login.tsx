@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react'
+import { getPlatform, getInstallInstructions, isStandalone } from '../utils/platform'
 
 interface LoginProps {
   onGuestSignIn: () => void;
@@ -10,14 +11,13 @@ export default function Login({ onGuestSignIn }: LoginProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorHint, setErrorHint] = useState<string | null>(null)
-  const [showIOSPrompt, setShowIOSPrompt] = useState(false)
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  const [detectedPlatform, setDetectedPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop')
 
   useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-    if (isIOS && !isStandalone) {
-      setShowIOSPrompt(true)
+    if (!isStandalone()) {
+      setShowInstallPrompt(true)
+      setDetectedPlatform(getPlatform())
     }
   }, [])
 
@@ -57,6 +57,13 @@ export default function Login({ onGuestSignIn }: LoginProps) {
       setLoading(false)
     }
   }
+
+  const formatText = (text: string) => {
+    const parts = text.split('**');
+    return parts.map((part, index) => {
+      return index % 2 === 1 ? <strong key={index}>{part}</strong> : part;
+    });
+  };
 
   return (
     <div className="min-h-dvh bg-surface-0 flex items-center justify-center px-4 py-8">
@@ -131,28 +138,34 @@ export default function Login({ onGuestSignIn }: LoginProps) {
           </p>
         </div>
 
-        {/* iOS Install Guide */}
-        {showIOSPrompt && (
-          <div className="card p-5 mt-4 space-y-3 bg-surface-1/90 backdrop-blur-md border border-accent/20">
-            <div className="flex items-center gap-2 text-accent font-extrabold text-xs">
-              <span className="text-sm">✨</span>
-              <span>Install HabitNook on your iPhone</span>
-            </div>
-            <p className="text-[11px] text-text-secondary leading-relaxed">
-              Add this web app to your Home Screen for a full-screen, app-like experience with offline tracking:
-            </p>
-            <div className="bg-surface-2/60 border border-border/40 rounded-xl p-3 text-[11px] space-y-2 font-medium text-text-primary">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">1</span>
-                <span>Tap the **Share** button in Safari's toolbar (represented by the <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">📤 Share</span> icon)</span>
+        {/* Platform-Specific Install Guide */}
+        {showInstallPrompt && (() => {
+          const inst = getInstallInstructions(detectedPlatform);
+          return (
+            <div className="card p-5 mt-4 space-y-3 bg-surface-1/90 backdrop-blur-md border border-accent/20">
+              <div className="flex items-center gap-2 text-accent font-extrabold text-xs">
+                <span className="text-sm">✨</span>
+                <span>{inst.title}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">2</span>
-                <span>Scroll down and select <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">➕ Add to Home Screen</span></span>
+              <p className="text-[11px] text-text-secondary leading-relaxed">
+                Add this web app to your home screen for a full-screen, app-like experience with offline tracking:
+              </p>
+              <div className="bg-surface-2/60 border border-border/40 rounded-xl p-3 text-[11px] space-y-2 font-medium text-text-primary">
+                {inst.steps.map((s) => (
+                  <div key={s.step} className="flex items-start gap-2">
+                    <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px] shrink-0 mt-0.5">{s.step}</span>
+                    <span className="leading-normal">
+                      {formatText(s.text)}
+                      {s.badge && (
+                        <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold ml-1.5">{s.badge}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   )
