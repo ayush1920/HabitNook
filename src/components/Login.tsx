@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react'
 
@@ -10,6 +10,16 @@ export default function Login({ onGuestSignIn }: LoginProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorHint, setErrorHint] = useState<string | null>(null)
+  const [showIOSPrompt, setShowIOSPrompt] = useState(false)
+
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    if (isIOS && !isStandalone) {
+      setShowIOSPrompt(true)
+    }
+  }, [])
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -120,6 +130,29 @@ export default function Login({ onGuestSignIn }: LoginProps) {
             By signing in you agree to local-first data storage.
           </p>
         </div>
+
+        {/* iOS Install Guide */}
+        {showIOSPrompt && (
+          <div className="card p-5 mt-4 space-y-3 bg-surface-1/90 backdrop-blur-md border border-accent/20">
+            <div className="flex items-center gap-2 text-accent font-extrabold text-xs">
+              <span className="text-sm">✨</span>
+              <span>Install HabitNook on your iPhone</span>
+            </div>
+            <p className="text-[11px] text-text-secondary leading-relaxed">
+              Add this web app to your Home Screen for a full-screen, app-like experience with offline tracking:
+            </p>
+            <div className="bg-surface-2/60 border border-border/40 rounded-xl p-3 text-[11px] space-y-2 font-medium text-text-primary">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">1</span>
+                <span>Tap the **Share** button in Safari's toolbar (represented by the <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">📤 Share</span> icon)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">2</span>
+                <span>Scroll down and select <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">➕ Add to Home Screen</span></span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
