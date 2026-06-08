@@ -37,6 +37,70 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
   const [activeWeeklyRemarkIdx, setActiveWeeklyRemarkIdx] = useState<number>(-1);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
+  // Touch detection
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  // Swiping and tooltip toggle state
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [loggedValuesActiveIdx, setLoggedValuesActiveIdx] = useState<number | string | null>(null);
+  const [loggedValuesHoveredIdx, setLoggedValuesHoveredIdx] = useState<number | string | null>(null);
+  
+  const [weeklyPatternActiveIdx, setWeeklyPatternActiveIdx] = useState<number | string | null>(null);
+  const [weeklyPatternHoveredIdx, setWeeklyPatternHoveredIdx] = useState<number | string | null>(null);
+
+  const [distributionActiveIdx, setDistributionActiveIdx] = useState<number | string | null>(null);
+  const [distributionHoveredIdx, setDistributionHoveredIdx] = useState<number | string | null>(null);
+
+  const [trendActiveIdx, setTrendActiveIdx] = useState<number | string | null>(null);
+  const [trendHoveredIdx, setTrendHoveredIdx] = useState<number | string | null>(null);
+
+  // Helper to create swipe touch handlers
+  const createSwipeHandlers = (onSwipeLeft: () => void, onSwipeRight: () => void) => {
+    let startX = 0;
+    let startY = 0;
+    let isSwipeCandidate = false;
+
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        isSwipeCandidate = true;
+        setIsSwiping(false);
+      },
+      onTouchMove: (e: React.TouchEvent) => {
+        if (!isSwipeCandidate) return;
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+        const diffX = Math.abs(startX - currentX);
+        const diffY = Math.abs(startY - currentY);
+        // If moved significantly, treat as swiping or scroll
+        if (diffX > 10 || diffY > 10) {
+          setIsSwiping(true);
+        }
+      },
+      onTouchEnd: (e: React.TouchEvent) => {
+        isSwipeCandidate = false;
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = startX - endX;
+        const diffY = startY - endY;
+        const minSwipeDistance = 40;
+
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
+          if (diffX > 0) {
+            onSwipeLeft();
+          } else {
+            onSwipeRight();
+          }
+        }
+        // Small delay to prevent accidental click on mouseUp emulation
+        setTimeout(() => {
+          setIsSwiping(false);
+        }, 50);
+      }
+    };
+  };
+
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -563,27 +627,28 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
 
     return (
       <div className="flex flex-col space-y-5 mb-4">
-        <div className="flex items-center justify-between bg-surface-1/60 backdrop-blur-md border border-border hover:border-accent/30 rounded-2xl p-4 shadow-sm transition-all mb-4">
-          <button
-            onClick={() => setActiveMonthIdx(prev => Math.min(prev + 1, 11))}
-            disabled={activeMonthIdx === 11}
-            className="p-2 rounded-xl bg-surface-2 hover:bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          
-          <div className="flex flex-col items-center">
+        <div className="flex items-center justify-between bg-surface-1/60 backdrop-blur-md border border-border hover:border-accent/30 rounded-2xl p-4 shadow-sm transition-all mb-4 flex-wrap gap-2">
+          <div className="flex flex-col">
              <span className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: habit.color || 'var(--accent)' }}>Month</span>
              <span className="text-base sm:text-lg font-extrabold text-text-primary tracking-tight">{label}</span>
           </div>
 
-          <button
-            onClick={() => setActiveMonthIdx(prev => Math.max(prev - 1, 0))}
-            disabled={activeMonthIdx === 0}
-            className="p-2 rounded-xl bg-surface-2 hover:bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveMonthIdx(prev => Math.min(prev + 1, 11))}
+              disabled={activeMonthIdx === 11}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setActiveMonthIdx(prev => Math.max(prev - 1, 0))}
+              disabled={activeMonthIdx === 0}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="bg-surface-2/40 border border-border/40 rounded-xl p-4 flex flex-col items-center">
@@ -733,6 +798,104 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
     }
     return null;
   };
+
+  // Swipe handler for "Logged Values Over Time"
+  const loggedValuesSwipeHandlers = createSwipeHandlers(
+    () => {
+      // Swipe Left -> Trigger right button (Next Bars / newer)
+      if (chartPageOffset > 0) {
+        setChartPageOffset(prev => Math.max(0, prev - 1));
+      }
+    },
+    () => {
+      // Swipe Right -> Trigger left button (Previous Bars / older)
+      const maxVisibleBars = windowWidth < 640 ? 7 : windowWidth < 1024 ? 14 : 31;
+      const totalBars = aggregatedData.length;
+      const startIndex = Math.max(0, totalBars - (chartPageOffset + 1) * maxVisibleBars);
+      if (startIndex > 0) {
+        setChartPageOffset(prev => prev + 1);
+      }
+    }
+  );
+
+  // Swipe handler for "Completions Intensity" (Heatmap)
+  const heatmapSwipeHandlers = createSwipeHandlers(
+    () => {
+      // Swipe Left -> Trigger right button (Next Weeks / newer)
+      if (heatmapPageOffset > 0) {
+        setHeatmapPageOffset(prev => Math.max(0, prev - 1));
+      }
+    },
+    () => {
+      // Swipe Right -> Trigger left button (Previous Weeks / older)
+      const start = new Date(startDate);
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      const cells: { dateStr: string; score: number | null; date: Date }[] = [];
+      const current = new Date(start);
+      while (current <= new Date()) { current.setDate(current.getDate() + 1); cells.push({dateStr: '', score: 0, date: new Date()}); }
+      const weeks = []; let tempWeek: typeof cells = [];
+      cells.forEach((cell, idx) => { tempWeek.push(cell); if (tempWeek.length === 7 || idx === cells.length - 1) { weeks.push(tempWeek); tempWeek = []; }});
+      const maxVisibleWeeks = windowWidth < 640 ? 12 : windowWidth < 1024 ? 24 : 52;
+      const startIndex = Math.max(0, weeks.length - (heatmapPageOffset + 1) * maxVisibleWeeks);
+      if (startIndex > 0) {
+        setHeatmapPageOffset(prev => prev + 1);
+      }
+    }
+  );
+
+  // Swipe handler for "Score Progress & Moving Avg"
+  const trendSwipeHandlers = createSwipeHandlers(
+    () => {
+      // Swipe Left -> Trigger right button (Next points)
+      if (trendPageOffset > 0) {
+        setTrendPageOffset(prev => Math.max(0, prev - 1));
+      }
+    },
+    () => {
+      // Swipe Right -> Trigger left button (Previous points)
+      const maxVisiblePoints = windowWidth < 640 ? 14 : windowWidth < 1024 ? 30 : 60;
+      const totalPoints = chartData.length;
+      const startIndex = Math.max(0, totalPoints - (trendPageOffset + 1) * maxVisiblePoints);
+      if (startIndex > 0) {
+        setTrendPageOffset(prev => prev + 1);
+      }
+    }
+  );
+
+  // Swipe handler for "Weekly Remarks & Memos Viewer"
+  const getWeeklyRemarksCount = () => {
+    const weekStartDates: Date[] = [];
+    const today = new Date();
+    const walk = new Date(startDate);
+    const walkDay = walk.getDay();
+    walk.setDate(walk.getDate() - (walkDay === 0 ? 6 : walkDay - 1));
+    while (walk <= today) {
+      weekStartDates.push(new Date(walk));
+      walk.setDate(walk.getDate() + 7);
+    }
+    return weekStartDates;
+  };
+  const weekStartDatesList = getWeeklyRemarksCount();
+  const selectedWeeklyRemarkIdx = activeWeeklyRemarkIdx !== -1 && activeWeeklyRemarkIdx < weekStartDatesList.length
+    ? activeWeeklyRemarkIdx
+    : weekStartDatesList.length - 1;
+
+  const weeklyRemarksSwipeHandlers = createSwipeHandlers(
+    () => {
+      // Swipe Left -> Next Week (newer / selectedIdx + 1)
+      if (selectedWeeklyRemarkIdx < weekStartDatesList.length - 1) {
+        setActiveWeeklyRemarkIdx(selectedWeeklyRemarkIdx + 1);
+      }
+    },
+    () => {
+      // Swipe Right -> Previous Week (older / selectedIdx - 1)
+      if (selectedWeeklyRemarkIdx > 0) {
+        setActiveWeeklyRemarkIdx(selectedWeeklyRemarkIdx - 1);
+      }
+    }
+  );
 
   const weeklyPatternData = weekdayPattern(entries, habit);
   const distributionData = distribution(timelineScores);
@@ -965,9 +1128,11 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
           <div className="analytics-section">
             <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center flex-wrap gap-3">
               <div className="flex items-center gap-2">
-                <BarChart2 className="w-4 h-4 text-accent" />
-                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Logged Values Over Time</h3>
-                <div className="flex items-center gap-1 ml-2">
+                <BarChart2 className="w-[22px] h-[22px] text-accent" />
+                <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Logged Values Over Time</h3>
+              </div>
+              <div className="flex items-center gap-3 ml-auto w-full sm:w-auto justify-between sm:justify-end flex-row-reverse sm:flex-row">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setChartPageOffset(prev => prev + 1)}
                     disabled={(() => {
@@ -976,35 +1141,35 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                       const startIndex = Math.max(0, totalBars - (chartPageOffset + 1) * maxVisibleBars);
                       return startIndex <= 0;
                     })()}
-                    className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                     title="Previous Bars"
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <ChevronLeft className="w-[22px] h-[22px]" />
                   </button>
                   <button
                     onClick={() => setChartPageOffset(prev => Math.max(0, prev - 1))}
                     disabled={chartPageOffset === 0}
-                    className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                     title="Next Bars"
                   >
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <ChevronRight className="w-[22px] h-[22px]" />
                   </button>
                 </div>
-              </div>
-              <div className="flex gap-1 bg-surface-3 p-1 rounded-lg">
-                {(['daily', 'weekly', 'fortnightly', 'monthly'] as const).map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setAggregationMode(mode)}
-                    className={`px-2.5 py-1 text-[10px] sm:text-xs font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
-                  >
-                    {mode}
-                  </button>
-                ))}
+                <div className="flex gap-1 bg-surface-3 p-1 rounded-lg">
+                  {(['daily', 'weekly', 'fortnightly', 'monthly'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setAggregationMode(mode)}
+                      className={`px-3 py-1.5 text-xs sm:text-[13px] font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="analytics-section-body pt-5">
-              <div className="h-70 w-full chart-container min-w-0">
+              <div className="h-70 w-full chart-container min-w-0" {...loggedValuesSwipeHandlers}>
                 {aggregatedData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-text-tertiary">
                     No entries logged in this period.
@@ -1019,7 +1184,28 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                       const visibleData = aggregatedData.slice(startIndex, endIndex);
 
                       return (
-                        <BarChart data={visibleData} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                        <BarChart 
+                          data={visibleData} 
+                          margin={{ top: 15, right: 10, left: -25, bottom: 0 }}
+                          onMouseMove={(state) => {
+                            if (state && state.activeTooltipIndex !== undefined) {
+                              setLoggedValuesHoveredIdx(state.activeTooltipIndex);
+                            } else {
+                              setLoggedValuesHoveredIdx(null);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setLoggedValuesHoveredIdx(null);
+                          }}
+                          onClick={(state) => {
+                            if (isSwiping) return;
+                            if (loggedValuesActiveIdx !== null) {
+                              setLoggedValuesActiveIdx(null);
+                            } else if (state && state.activeTooltipIndex !== undefined) {
+                              setLoggedValuesActiveIdx(state.activeTooltipIndex);
+                            }
+                          }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                           <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
                           <YAxis 
@@ -1032,6 +1218,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                             }]} 
                           />
                           <Tooltip 
+                            active={isTouchDevice ? (!isSwiping && loggedValuesActiveIdx !== null && loggedValuesHoveredIdx === loggedValuesActiveIdx) : undefined}
                             cursor={false}
                             formatter={(value, _name, props) => [
                               props.payload.expected && props.payload.expected > 0 
@@ -1076,12 +1263,12 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
           </div>
           
           <div className="analytics-section">
-            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center">
+            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center flex-wrap gap-3">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-accent" />
-                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Completions Intensity</h3>
+                <Calendar className="w-[22px] h-[22px] text-accent" />
+                <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Completions Intensity</h3>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 ml-auto w-full sm:w-auto justify-end">
                 <button
                   onClick={() => setHeatmapPageOffset(prev => prev + 1)}
                   disabled={(() => {
@@ -1098,28 +1285,28 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                     const startIndex = Math.max(0, weeks.length - (heatmapPageOffset + 1) * maxVisibleWeeks);
                     return startIndex <= 0;
                   })()}
-                  className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ChevronLeft className="w-[22px] h-[22px]" />
                 </button>
                 <button
                   onClick={() => setHeatmapPageOffset(prev => Math.max(0, prev - 1))}
                   disabled={heatmapPageOffset === 0}
-                  className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-[22px] h-[22px]" />
                 </button>
               </div>
             </div>
-            <div className="analytics-section-body pt-5">
-              {renderCalendarHeatmap()}
-            </div>
+             <div className="analytics-section-body pt-5" {...heatmapSwipeHandlers}>
+               {renderCalendarHeatmap()}
+             </div>
           </div>
 
           <div className="analytics-section">
             <div className="analytics-section-header border-b border-border bg-surface-2/30">
-              <Calendar className="w-4 h-4 text-accent" />
-              <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">12-Month Calendar</h3>
+              <Calendar className="w-[22px] h-[22px] text-accent" />
+              <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">12-Month Calendar</h3>
             </div>
             <div className="analytics-section-body" style={{ paddingTop: '24px' }}>
               {renderTwelveMonthCalendar()}
@@ -1127,12 +1314,12 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
           </div>
 
           <div className="analytics-section">
-            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center">
+            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center flex-wrap gap-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-accent" />
-                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Score Progress & Moving Avg</h3>
+                <TrendingUp className="w-[22px] h-[22px] text-accent" />
+                <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Score Progress & Moving Avg</h3>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 ml-auto w-full sm:w-auto justify-end">
                 <button
                   onClick={() => setTrendPageOffset(prev => prev + 1)}
                   disabled={(() => {
@@ -1141,21 +1328,21 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                     const startIndex = Math.max(0, totalPoints - (trendPageOffset + 1) * maxVisiblePoints);
                     return startIndex <= 0;
                   })()}
-                  className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ChevronLeft className="w-[22px] h-[22px]" />
                 </button>
                 <button
                   onClick={() => setTrendPageOffset(prev => Math.max(0, prev - 1))}
                   disabled={trendPageOffset === 0}
-                  className="p-1 rounded bg-surface-3 hover:bg-surface-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-border/40 disabled:opacity-20 disabled:pointer-events-none"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-20 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer touch-manipulation"
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-[22px] h-[22px]" />
                 </button>
               </div>
             </div>
             <div className="analytics-section-body pt-5">
-              <div className="h-70 w-full chart-container min-w-0">
+              <div className="h-70 w-full chart-container min-w-0" {...trendSwipeHandlers}>
                 {chartData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-text-tertiary">
                     No entries logged in this period.
@@ -1170,11 +1357,32 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                       const visibleChartData = chartData.slice(startIndex, endIndex);
                       
                       return (
-                        <LineChart data={visibleChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <LineChart 
+                          data={visibleChartData} 
+                          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                          onMouseMove={(state) => {
+                            if (state && state.activeTooltipIndex !== undefined) {
+                              setTrendHoveredIdx(state.activeTooltipIndex);
+                            } else {
+                              setTrendHoveredIdx(null);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setTrendHoveredIdx(null);
+                          }}
+                          onClick={(state) => {
+                            if (isSwiping) return;
+                            if (trendActiveIdx !== null) {
+                              setTrendActiveIdx(null);
+                            } else if (state && state.activeTooltipIndex !== undefined) {
+                              setTrendActiveIdx(state.activeTooltipIndex);
+                            }
+                          }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                           <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
                           <YAxis domain={[0, 100]} stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <Tooltip active={isTouchDevice ? (!isSwiping && trendActiveIdx !== null && trendHoveredIdx === trendActiveIdx) : undefined} content={<CustomTooltip />} />
                           <ReferenceLine y={100} stroke={habit.color || '#a78bfa'} strokeDasharray="3 3" opacity={0.3} label={{ value: 'Target', position: 'insideTopRight', fill: '#555', fontSize: 8 }} />
                           <ReferenceLine y={50} stroke="#f43f5e" strokeDasharray="3 3" opacity={0.3} label={{ value: 'Limit', position: 'insideBottomRight', fill: '#555', fontSize: 8 }} />
                           <Line 
@@ -1207,19 +1415,41 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
             
             {/* Section 4: Weekday Pattern (only for daily habits) */}
             {habit.frequency === 'daily' && (
-              <div className="analytics-section">
-                <div className="analytics-section-header border-b border-border bg-surface-2/30">
-                  <BarChart2 className="w-4 h-4 text-accent" />
-                  <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Weekday Pattern</h3>
-                </div>
-                <div className="analytics-section-body pt-5">
-                  <div className="h-[240px] w-full chart-container min-w-0">
-                    <ResponsiveContainer width="99%" height={220}>
-                        <BarChart data={weeklyPatternData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+               <div className="analytics-section">
+                 <div className="analytics-section-header border-b border-border bg-surface-2/30">
+                   <BarChart2 className="w-[22px] h-[22px] text-accent" />
+                   <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Weekday Pattern</h3>
+                 </div>
+                 <div className="analytics-section-body pt-5">
+                   <div className="h-[240px] w-full chart-container min-w-0">
+                     <ResponsiveContainer width="99%" height={220}>
+                        <BarChart 
+                          data={weeklyPatternData} 
+                          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                          onMouseMove={(state) => {
+                            if (state && state.activeTooltipIndex !== undefined) {
+                              setWeeklyPatternHoveredIdx(state.activeTooltipIndex);
+                            } else {
+                              setWeeklyPatternHoveredIdx(null);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setWeeklyPatternHoveredIdx(null);
+                          }}
+                          onClick={(state) => {
+                            if (isSwiping) return;
+                            if (weeklyPatternActiveIdx !== null) {
+                              setWeeklyPatternActiveIdx(null);
+                            } else if (state && state.activeTooltipIndex !== undefined) {
+                              setWeeklyPatternActiveIdx(state.activeTooltipIndex);
+                            }
+                          }}
+                        >
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                           <XAxis dataKey="dayName" stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
                           <YAxis domain={[0, 115]} stroke="var(--text-secondary)" fontSize={9} tickLine={false} tickFormatter={(val) => Math.min(100, val).toString()} />
                         <Tooltip 
+                          active={isTouchDevice ? (!isSwiping && weeklyPatternActiveIdx !== null && weeklyPatternHoveredIdx === weeklyPatternActiveIdx) : undefined}
                           cursor={false}
                           formatter={(value) => [`${value}%`, 'Avg Score']} 
                           contentStyle={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)' }}
@@ -1243,36 +1473,58 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Section 5: Distribution */}
-            <div className="analytics-section">
-              <div className="analytics-section-header border-b border-border bg-surface-2/30">
-                <PieChart className="w-4 h-4 text-accent" />
-                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Score Distribution</h3>
-              </div>
-              <div className="analytics-section-body pt-5">
-                <div className="h-[240px] w-full chart-container min-w-0">
-                  <ResponsiveContainer width="99%" height={220}>
-                    <BarChart data={distributionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                      <XAxis dataKey="range" stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
-                      <YAxis 
-                        stroke="var(--text-secondary)" 
-                        fontSize={9} 
-                        tickLine={false} 
-                        domain={[0, (dataMax: number) => Math.max(dataMax, Math.ceil(dataMax * 1.15))]}
-                      />
-                      <Tooltip 
-                        cursor={false}
-                        formatter={(value) => [value, 'Periods']}
-                        contentStyle={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)' }}
-                        itemStyle={{ color: 'var(--text-primary)' }}
-                        labelStyle={{ color: 'var(--text-secondary)' }}
-                      />
+                   </div>
+                 </div>
+               </div>
+             )}
+ 
+             {/* Section 5: Distribution */}
+             <div className="analytics-section">
+               <div className="analytics-section-header border-b border-border bg-surface-2/30">
+                 <PieChart className="w-[22px] h-[22px] text-accent" />
+                 <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Score Distribution</h3>
+               </div>
+               <div className="analytics-section-body pt-5">
+                 <div className="h-[240px] w-full chart-container min-w-0">
+                   <ResponsiveContainer width="99%" height={220}>
+                     <BarChart 
+                       data={distributionData} 
+                       margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                       onMouseMove={(state) => {
+                         if (state && state.activeTooltipIndex !== undefined) {
+                           setDistributionHoveredIdx(state.activeTooltipIndex);
+                         } else {
+                           setDistributionHoveredIdx(null);
+                         }
+                       }}
+                       onMouseLeave={() => {
+                         setDistributionHoveredIdx(null);
+                       }}
+                       onClick={(state) => {
+                         if (isSwiping) return;
+                         if (distributionActiveIdx !== null) {
+                           setDistributionActiveIdx(null);
+                         } else if (state && state.activeTooltipIndex !== undefined) {
+                           setDistributionActiveIdx(state.activeTooltipIndex);
+                         }
+                       }}
+                     >
+                       <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                       <XAxis dataKey="range" stroke="var(--text-secondary)" fontSize={9} tickLine={false} />
+                       <YAxis 
+                         stroke="var(--text-secondary)" 
+                         fontSize={9} 
+                         tickLine={false} 
+                         domain={[0, (dataMax: number) => Math.max(dataMax, Math.ceil(dataMax * 1.15))]}
+                       />
+                       <Tooltip 
+                         active={isTouchDevice ? (!isSwiping && distributionActiveIdx !== null && distributionHoveredIdx === distributionActiveIdx) : undefined}
+                         cursor={false}
+                         formatter={(value) => [value, 'Periods']}
+                         contentStyle={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)' }}
+                         itemStyle={{ color: 'var(--text-primary)' }}
+                         labelStyle={{ color: 'var(--text-secondary)' }}
+                       />
                       <Bar 
                         dataKey="count" 
                         fill={habit.color || '#a78bfa'} 
@@ -1290,10 +1542,10 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
             {/* Section 6: Remarks & Memos (Grouped and filterable by week matching date context) */}
             <div className="analytics-section">
               <div className="analytics-section-header border-b border-border bg-surface-2/30">
-                <Sparkles className="w-4 h-4 text-accent" />
-                <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">Weekly Remarks & Memos Viewer</h3>
+                <Sparkles className="w-[22px] h-[22px] text-accent" />
+                <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Weekly Remarks & Memos Viewer</h3>
               </div>
-              <div className="analytics-section-body" style={{ paddingTop: '24px' }}>
+              <div className="analytics-section-body" style={{ paddingTop: '24px' }} {...weeklyRemarksSwipeHandlers}>
                 {(() => {
                   // Reconstruct timeline segmented into weeks based on target periods
                   const weekStartDates: Date[] = [];
@@ -1340,30 +1592,32 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                   return (
                     <div className="space-y-4">
                       {/* Week selector controls */}
-                      <div className="flex items-center justify-between bg-surface-2/65 p-3 rounded-xl border border-border/60">
-                        <button
-                          onClick={() => setActiveWeeklyRemarkIdx(Math.max(0, selectedIdx - 1))}
-                          disabled={selectedIdx === 0}
-                          className="p-1.5 rounded-lg bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <div className="text-center">
+                      <div className="flex items-center justify-between bg-surface-2/65 p-3 rounded-xl border border-border/60 flex-wrap gap-2">
+                        <div className="text-left">
                           <span className="text-[10px] font-bold text-accent uppercase tracking-widest block mb-0.5">Week View</span>
                           <span className="text-xs font-bold text-text-primary">
                             {format(selectedWeekStart, 'MMM d, yyyy')} - {format(selectedWeekEnd, 'MMM d, yyyy')}
                           </span>
                         </div>
-                        <button
-                          onClick={() => {
-                            const nextVal = Math.min(weekStartDates.length - 1, selectedIdx + 1);
-                            setActiveWeeklyRemarkIdx(nextVal);
-                          }}
-                          disabled={selectedIdx === weekStartDates.length - 1}
-                          className="p-1.5 rounded-lg bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-25 active:scale-95 transition-all cursor-pointer"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setActiveWeeklyRemarkIdx(Math.max(0, selectedIdx - 1))}
+                            disabled={selectedIdx === 0}
+                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-25 active:scale-95 transition-all cursor-pointer touch-manipulation"
+                          >
+                            <ChevronLeft className="w-6 h-6" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const nextVal = Math.min(weekStartDates.length - 1, selectedIdx + 1);
+                              setActiveWeeklyRemarkIdx(nextVal);
+                            }}
+                            disabled={selectedIdx === weekStartDates.length - 1}
+                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-surface-3 border border-border text-text-secondary hover:text-text-primary disabled:opacity-25 active:scale-95 transition-all cursor-pointer touch-manipulation"
+                          >
+                            <ChevronRight className="w-6 h-6" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Day Grid indicators indicating which day has memo */}
