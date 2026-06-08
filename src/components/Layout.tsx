@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { Home, Settings, TrendingUp, Sun, Moon, Monitor, Download } from 'lucide-react'
+import { Home, Settings, TrendingUp, Sun, Moon, Monitor, Download, X } from 'lucide-react'
 
 export type Page = 'home' | 'settings' | 'trends' | 'habit-detail'
 
@@ -23,6 +23,21 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const sidebarRef = useRef<HTMLElement>(null)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showIOSInstallTip, setShowIOSInstallTip] = useState(false)
+
+  useEffect(() => {
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (/Macintosh/.test(navigator.userAgent) && 'ontouchend' in document);
+    // Detect standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    // Check if user already dismissed it
+    const dismissed = localStorage.getItem('habitnook_ios_prompt_dismissed');
+
+    if (isIOS && !isStandalone && !dismissed) {
+      setShowIOSInstallTip(true);
+    }
+  }, []);
 
   // PWA Install Prompt Listener
   useEffect(() => {
@@ -240,6 +255,40 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
         })}
         {/* Mobile User/Settings fallback just in case, though settings is an item */}
       </nav>
+      {/* iOS Safari PWA Install Helper Toast */}
+      {showIOSInstallTip && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[92vw] max-w-xs bg-surface-1/95 backdrop-blur-md border border-accent/20 rounded-2xl shadow-2xl p-4.5 animate-fade-in flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 text-accent font-extrabold text-xs">
+              <span className="text-sm">✨</span>
+              <span>Install HabitNook</span>
+            </div>
+            <button
+              onClick={() => {
+                setShowIOSInstallTip(false);
+                localStorage.setItem('habitnook_ios_prompt_dismissed', 'true');
+              }}
+              className="text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-3 transition-all cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[11px] text-text-secondary leading-relaxed">
+            Install this app on your iPhone for a full-screen, offline-enabled app experience:
+          </p>
+          <div className="bg-surface-2/60 border border-border/40 rounded-xl p-3 text-[11px] space-y-2 font-medium text-text-primary">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">1</span>
+              <span>Tap the **Share** button in Safari's toolbar (represented by the <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">📤 Share</span> icon)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-4 h-4 rounded bg-surface-3 text-[10px]">2</span>
+              <span>Scroll down and select <span className="inline-block px-1.5 py-0.5 bg-surface-3 border border-border/30 rounded text-[9px] font-bold">➕ Add to Home Screen</span></span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
