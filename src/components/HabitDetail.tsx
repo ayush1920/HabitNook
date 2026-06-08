@@ -59,32 +59,52 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
     let startX = 0;
     let startY = 0;
     let isSwipeCandidate = false;
+    let swipeDirectionConfirmed = false;
 
     return {
-      onTouchStart: (e: React.TouchEvent) => {
+      onTouchStartCapture: (e: React.TouchEvent) => {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isSwipeCandidate = true;
+        swipeDirectionConfirmed = false;
         setIsSwiping(false);
       },
-      onTouchMove: (e: React.TouchEvent) => {
+      onTouchMoveCapture: (e: React.TouchEvent) => {
         if (!isSwipeCandidate) return;
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
-        const diffX = Math.abs(startX - currentX);
-        const diffY = Math.abs(startY - currentY);
-        // If moved significantly, treat as swiping or scroll
-        if (diffX > 10 || diffY > 10) {
+        const diffX = currentX - startX;
+        const diffY = currentY - startY;
+        const absDiffX = Math.abs(diffX);
+        const absDiffY = Math.abs(diffY);
+
+        // Determine if horizontal or vertical swipe once past minimal movement threshold
+        if (!swipeDirectionConfirmed && (absDiffX > 8 || absDiffY > 8)) {
+          if (absDiffX > absDiffY) {
+            swipeDirectionConfirmed = true; // Horizontal swipe confirmed
+          } else {
+            isSwipeCandidate = false; // Vertical scroll, ignore swipe candidate
+          }
+        }
+
+        if (swipeDirectionConfirmed) {
           setIsSwiping(true);
+          // Stop propagation so Recharts doesn't intercept it
+          e.stopPropagation();
         }
       },
-      onTouchEnd: (e: React.TouchEvent) => {
+      onTouchEndCapture: (e: React.TouchEvent) => {
+        if (!swipeDirectionConfirmed) {
+          isSwipeCandidate = false;
+          return;
+        }
         isSwipeCandidate = false;
+        swipeDirectionConfirmed = false;
         const endX = e.changedTouches[0].clientX;
         const endY = e.changedTouches[0].clientY;
         const diffX = startX - endX;
         const diffY = startY - endY;
-        const minSwipeDistance = 40;
+        const minSwipeDistance = 45;
 
         if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
           if (diffX > 0) {
@@ -1126,13 +1146,24 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
 
           {/* Section 1: Logged Values Over Time */}
           <div className="analytics-section">
-            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center flex-wrap gap-3">
+            <div className="analytics-section-header border-b border-border bg-surface-2/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-[22px] h-[22px] text-accent" />
                 <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Logged Values Over Time</h3>
               </div>
-              <div className="flex items-center gap-3 ml-auto w-full sm:w-auto justify-between sm:justify-end flex-row-reverse sm:flex-row">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                <div className="flex gap-1 bg-surface-3 p-1 rounded-lg w-full sm:w-auto justify-between sm:justify-start">
+                  {(['daily', 'weekly', 'fortnightly', 'monthly'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setAggregationMode(mode)}
+                      className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-[13px] font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5 self-end sm:self-auto">
                   <button
                     onClick={() => setChartPageOffset(prev => prev + 1)}
                     disabled={(() => {
@@ -1154,17 +1185,6 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                   >
                     <ChevronRight className="w-[22px] h-[22px]" />
                   </button>
-                </div>
-                <div className="flex gap-1 bg-surface-3 p-1 rounded-lg">
-                  {(['daily', 'weekly', 'fortnightly', 'monthly'] as const).map(mode => (
-                    <button
-                      key={mode}
-                      onClick={() => setAggregationMode(mode)}
-                      className={`px-3 py-1.5 text-xs sm:text-[13px] font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>
