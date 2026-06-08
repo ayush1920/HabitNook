@@ -211,7 +211,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Morning Cardio, Read Book, Drink Water"
-              className="w-full px-4 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+              className="w-full px-4 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
               autoFocus
             />
           </div>
@@ -225,7 +225,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What are the details of this habit loop? (e.g. 20 pages max before bed)"
-              className="w-full px-4 py-2 bg-surface-2 border border-border text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all min-h-16 resize-none"
+              className="w-full px-4 py-2 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all min-h-16 resize-none"
             />
           </div>
           {/* Type Selection (Positive vs Limiting) */}
@@ -269,7 +269,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
                 id="habit-frequency"
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as any)}
-                className="w-full px-3 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
+                className="w-full px-3 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -288,7 +288,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
                   min="1"
                   value={target}
                   onChange={(e) => setTarget(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-3 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
+                  className="w-full px-3 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
                 />
                 <span className="text-xs text-text-tertiary whitespace-nowrap">
                   {frequency === 'daily' ? '/ day' : frequency === 'weekly' ? '/ week' : '/ month'}
@@ -390,7 +390,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
                   value={icon}
                   onChange={(e) => setIcon(e.target.value)}
                   maxLength={4}
-                  className="w-16 px-2 py-2 bg-surface-2 border border-border text-sm text-center text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
+                  className="w-16 px-2 py-2 bg-surface-2 border border-border text-base md:text-sm text-center text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
                   placeholder="icon"
                 />
               </div>

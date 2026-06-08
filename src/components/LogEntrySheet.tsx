@@ -203,7 +203,7 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
                 }
               }}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full max-w-[200px] px-4 py-2.5 bg-surface-2/80 border border-border text-sm font-semibold text-text-primary rounded-xl focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all cursor-pointer [color-scheme:dark] shadow-xs"
+              className="w-full max-w-[200px] px-4 py-2.5 bg-surface-2/80 border border-border text-base md:text-sm font-semibold text-text-primary rounded-xl focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all cursor-pointer [color-scheme:dark] shadow-xs"
             />
           </div>
 
@@ -217,7 +217,7 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
               onChange={(e) => setRemark(e.target.value)}
               placeholder="e.g. Done early morning, skipped due to muscle soreness"
               rows={3}
-              className="w-full px-4 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none leading-relaxed"
+              className="w-full px-4 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none leading-relaxed"
             />
           </div>
 
