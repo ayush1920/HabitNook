@@ -752,10 +752,10 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-3 rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent hover:border-border transition-all cursor-pointer"
+            className="p-4 rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent hover:border-border transition-all cursor-pointer touch-manipulation"
             aria-label="Back"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-7 h-7" />
           </button>
           
           <div className="flex items-center gap-2.5">
