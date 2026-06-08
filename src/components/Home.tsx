@@ -764,8 +764,7 @@ export default function Home({
       {/* ── Symmetrical Floating Toast Notifications (Safe Above Mobile Navigation Pills) ── */}
       {syncToastMessage && (
         <div 
-          className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center w-max max-w-[85vw] animate-fade-in"
-          style={{ transform: 'translateX(-50%)' }}
+          className="fixed bottom-24 md:bottom-6 left-0 right-0 mx-auto w-fit max-w-[85vw] z-50 flex items-center justify-center animate-fade-in"
         >
           <div className={`flex items-center gap-2.5 px-4.5 py-3 rounded-2xl border text-xs font-bold shadow-xl backdrop-blur-md ${
             syncToastMessage.error
