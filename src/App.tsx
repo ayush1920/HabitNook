@@ -10,6 +10,7 @@ import Trends from './components/Trends'
 import HabitDetail from './components/HabitDetail'
 import AddHabitSheet from './components/AddHabitSheet'
 import LogEntrySheet from './components/LogEntrySheet'
+import HabitJournal from './components/HabitJournal'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import type { Habit } from './db/database'
 import { addHabit, updateHabit, deleteHabit } from './db/habits'
@@ -243,7 +244,17 @@ function App() {
               }
               setIsLogSheetOpen(true)
             }}
+            onOpenJournal={() => setCurrentPage('journal')}
           />
+        )
+      case 'journal':
+        return selectedHabit ? (
+          <HabitJournal 
+            habit={selectedHabit}
+            onBack={() => setCurrentPage('habit-detail')}
+          />
+        ) : (
+          <div className="p-8 text-center text-text-tertiary">No habit selected for journal view.</div>
         )
       case 'home':
       default:

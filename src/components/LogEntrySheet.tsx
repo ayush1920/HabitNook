@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Minus, Calendar, CheckCircle2, Edit2, Eye } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { Habit } from '../db/database';
 import { db } from '../db/database';
 
@@ -18,8 +20,9 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
     const localToday = new Date(today.getTime() - offset * 60 * 1000);
     return localToday.toISOString().split('T')[0];
   });
-  const [value, setValue] = useState(-2); // Default to -2 (Unset)
+  const [value, setValue] = useState<number>(-2);
   const [remark, setRemark] = useState(''); // Short text remark/note for this date log
+  const [previewMode, setPreviewMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [incrementValue, setIncrementValue] = useState(1);
@@ -209,16 +212,47 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
 
           {/* Remarks Input */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">
-              Log Remarks / Memo
-            </label>
-            <textarea
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-              placeholder="e.g. Done early morning, skipped due to muscle soreness"
-              rows={3}
-              className="w-full px-4 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none leading-relaxed"
-            />
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">
+                Log Remarks / Memo
+              </label>
+              <div className="flex bg-surface-3 rounded-lg p-1 border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode(false)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${!previewMode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  Write
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode(true)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${previewMode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
+            
+            {previewMode ? (
+              <div className="w-full h-[100px] overflow-y-auto px-4 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl prose prose-sm max-w-none prose-headings:font-bold prose-a:text-accent prose-p:leading-relaxed">
+                {remark.trim() ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {remark}
+                  </ReactMarkdown>
+                ) : (
+                  <span className="text-text-tertiary italic">Nothing to preview.</span>
+                )}
+              </div>
+            ) : (
+              <textarea
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder="e.g. Done early morning, skipped due to muscle soreness. Markdown is supported (*italic*, **bold**)."
+                rows={3}
+                className="w-full px-4 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none leading-relaxed"
+              />
+            )}
           </div>
 
           {/* Selector UI based on Target */}

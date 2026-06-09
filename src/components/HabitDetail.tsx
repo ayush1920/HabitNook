@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Edit2, Trash2, Calendar, TrendingUp, BarChart2, PieChart, 
-  AlertTriangle, Plus, ChevronLeft, ChevronRight, Sparkles
+  AlertTriangle, Plus, ChevronLeft, ChevronRight, Sparkles, FileText, ArrowRight,
+  Copy, Check
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
   BarChart, Bar, LabelList, Cell
 } from 'recharts';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { format, startOfWeek, differenceInDays, startOfMonth } from 'date-fns';
 import type { Habit, HabitEntry } from '../db/database';
 import { getEntriesForHabit } from '../db/entries';
@@ -19,15 +22,27 @@ interface HabitDetailProps {
   onEdit: (habit: Habit) => void;
   onDelete: (habitId: string) => void;
   onLogClick: (dateStr?: string) => void;
+  onOpenJournal?: () => void;
 }
 
 type PeriodType = '1w' | '1m' | '3m' | '6m';
 
-export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClick }: HabitDetailProps) {
+export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClick, onOpenJournal }: HabitDetailProps) {
   const [entries, setEntries] = useState<HabitEntry[]>([]);
   const [period, setPeriod] = useState<PeriodType>('1m');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyToClipboard = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   const [activeMonthIdx, setActiveMonthIdx] = useState(0); // 0 is current month
   const [aggregationMode, setAggregationMode] = useState<'daily'|'weekly'|'fortnightly'|'monthly'>('daily');
@@ -126,6 +141,15 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Scroll to top when active habit details open
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+  }, [habit.id]);
 
   // Reset offsets on period or aggregation change
   useEffect(() => {
@@ -1561,9 +1585,18 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
 
             {/* Section 6: Remarks & Memos (Grouped and filterable by week matching date context) */}
             <div className="analytics-section">
-              <div className="analytics-section-header border-b border-border bg-surface-2/30">
-                <Sparkles className="w-[22px] h-[22px] text-accent" />
-                <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Weekly Remarks & Memos Viewer</h3>
+              <div 
+                className="analytics-section-header border-b border-border bg-surface-2/30 flex justify-between items-center cursor-pointer hover:bg-surface-3 transition-colors"
+                onClick={onOpenJournal}
+                title="Open full journal view"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-accent" />
+                  <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider group-hover:text-accent transition-colors">Weekly Remarks & Memos Viewer</h3>
+                </div>
+                <div className="text-xs text-accent font-bold flex items-center gap-1">
+                  Open Journal <ArrowRight className="w-3.5 h-3.5" />
+                </div>
               </div>
               <div className="analytics-section-body" style={{ paddingTop: '24px' }} {...weeklyRemarksSwipeHandlers}>
                 {(() => {
@@ -1673,14 +1706,25 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                             return <p className="text-xs text-text-tertiary text-center py-4">No memos logged in this week.</p>;
                           }
                           return activeMemos.map((e) => (
-                            <div key={e.id} className="p-3 rounded-lg bg-surface-2 border border-border/80 flex flex-col gap-1 text-xs hover:border-accent/15 transition-all">
+                            <div key={e.id} className="p-3 rounded-lg bg-surface-2 border border-border/80 flex flex-col gap-1 text-xs hover:border-accent/15 transition-all group">
                               <div className="flex justify-between items-center text-[10px] text-text-tertiary font-mono">
                                 <span className="font-extrabold">{e.date}</span>
                                 <span className="font-bold text-[#818cf8]">Val: {e.value === -1 ? 'Skipped' : e.value}</span>
                               </div>
-                              <p className="text-text-secondary italic leading-relaxed select-text font-medium px-2.5 py-1 bg-surface-1 border border-border/30 rounded-md">
-                                "{e.remark}"
-                              </p>
+                              <div className="flex flex-col sm:flex-row gap-4 items-start relative mt-1">
+                                <div className="flex-1 text-text-secondary leading-relaxed bg-surface-1 border border-border/30 rounded-md p-3 prose prose-sm max-w-none prose-headings:font-bold prose-a:text-accent">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {e.remark || ''}
+                                  </ReactMarkdown>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(e.id, e.remark || '')}
+                                  className="absolute top-2 right-2 sm:static p-1.5 sm:p-2 rounded-lg bg-surface-2/50 sm:bg-transparent border border-border/50 sm:border-transparent text-text-tertiary hover:text-accent hover:bg-surface-3 transition-all active:scale-95 z-10"
+                                  title="Copy Markdown"
+                                >
+                                  {copiedId === e.id ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                              </div>
                             </div>
                           ));
                         })()}

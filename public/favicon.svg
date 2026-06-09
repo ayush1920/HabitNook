@@ -1,8 +1,13 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="nookGradient" x1="128" y1="128" x2="448" y2="384" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#4F46E5"/>
-      <stop offset="100%" stop-color="#7C3AED"/>
+    <linearGradient id="nookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+
+    <linearGradient id="nookFillGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D946EF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0.05"/>
     </linearGradient>
 
     <linearGradient id="leafGradient" x1="192" y1="184" x2="320" y2="248" gradientUnits="userSpaceOnUse">
@@ -11,13 +16,14 @@
     </linearGradient>
 
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.18"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#8B5CF6" flood-opacity="0.5"/>
     </filter>
   </defs>
 
   <!-- Nook -->
   <path
-    d="M128 128H320C390.692 128 448 185.308 448 256V384"
+    d="M 160 64 L 333 64 C 396.51 64 448 115.49 448 179 L 448 352"
+    fill="url(#nookFillGradient)"
     stroke="url(#nookGradient)"
     stroke-width="40"
     stroke-linecap="round"

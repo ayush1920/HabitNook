@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { Home, Settings, TrendingUp, Sun, Moon, Monitor, Download, X } from 'lucide-react'
 import { getPlatform, getInstallInstructions, isStandalone } from '../utils/platform'
 
-export type Page = 'home' | 'settings' | 'trends' | 'habit-detail'
+export type Page = 'home' | 'settings' | 'trends' | 'habit-detail' | 'journal'
 
 interface LayoutProps {
   user: User
@@ -14,7 +14,7 @@ interface LayoutProps {
   onThemeChange: (theme: 'light' | 'dark' | 'system') => void
 }
 
-const NAV_ITEMS: { id: Exclude<Page, 'habit-detail'>; label: string; icon: typeof Home }[] = [
+const NAV_ITEMS: { id: Exclude<Page, 'habit-detail' | 'journal'>; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'trends', label: 'Trends', icon: TrendingUp },
   { id: 'settings', label: 'Settings', icon: Settings },
