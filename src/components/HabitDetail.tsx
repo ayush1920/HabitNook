@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Edit2, Trash2, Calendar, TrendingUp, BarChart2, PieChart, 
-  AlertTriangle, Plus, ChevronLeft, ChevronRight, Sparkles, FileText, ArrowRight,
+  AlertTriangle, Plus, ChevronLeft, ChevronRight, FileText, ArrowRight,
   Copy, Check
 } from 'lucide-react';
 import { 

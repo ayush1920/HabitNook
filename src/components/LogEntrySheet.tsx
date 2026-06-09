@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Calendar, CheckCircle2, Edit2, Eye } from 'lucide-react';
+import { X, Plus, Minus, Calendar, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Habit } from '../db/database';
