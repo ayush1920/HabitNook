@@ -15,7 +15,7 @@ import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import type { Habit } from './db/database'
 import { addHabit, updateHabit, deleteHabit } from './db/habits'
 import { logEntry } from './db/entries'
-import { initializeAutomatedSync, syncDataWithSupabase, registerConflictNotifier } from './db/sync'
+import { initializeAutomatedSync, syncDataWithSupabase, registerConflictNotifier, subscribeToRealtimeSync, unsubscribeFromRealtimeSync } from './db/sync'
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
@@ -72,6 +72,7 @@ function App() {
         }
         // Force an initial background sync when session is established on returning users
         syncDataWithSupabase().then(() => setRefreshTrigger(prev => prev + 1));
+        subscribeToRealtimeSync();
       }
       setLoading(false)
     })
@@ -87,6 +88,9 @@ function App() {
         if (u) {
           // Sync on auth stage change transitions
           syncDataWithSupabase().then(() => setRefreshTrigger(prev => prev + 1));
+          subscribeToRealtimeSync();
+        } else {
+          unsubscribeFromRealtimeSync();
         }
         if (session && window.location.hash.includes('access_token')) {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -119,6 +123,7 @@ function App() {
   // Handle custom sign out that also clears local storage guest sessions
   const handleSignOut = async () => {
     localStorage.removeItem('habitnook_guest_user')
+    unsubscribeFromRealtimeSync();
     await supabase.auth.signOut()
     setUser(null)
     setCurrentPage('home')

@@ -41,6 +41,34 @@ export function initializeAutomatedSync() {
   });
 }
 
+let realtimeChannel: any = null;
+
+export function subscribeToRealtimeSync() {
+  if (realtimeChannel) return;
+
+  const trigger = () => {
+    if (syncDebounceTimeout) clearTimeout(syncDebounceTimeout);
+    syncDebounceTimeout = setTimeout(() => {
+      console.log('[SyncEngine] Realtime event received from server, triggering sync...');
+      syncDataWithSupabase();
+    }, 1500); // 1.5s debounce for remote events
+  };
+
+  realtimeChannel = supabase.channel('habitnook-sync-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, () => trigger())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'entries' }, () => trigger())
+    .subscribe((status) => {
+      console.log('[SyncEngine] Realtime subscription status:', status);
+    });
+}
+
+export function unsubscribeFromRealtimeSync() {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
 // Global modal notifier callback
 let conflictAlertCallback: ((message: string) => Promise<void>) | null = null;
 export function registerConflictNotifier(callback: (message: string) => Promise<void>) {
