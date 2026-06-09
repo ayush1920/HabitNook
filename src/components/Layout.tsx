@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { Home, Settings, TrendingUp, Sun, Moon, Monitor, Download, X } from 'lucide-react'
 import { getPlatform, getInstallInstructions, isStandalone } from '../utils/platform'
+import SyncIndicator from './SyncIndicator'
 
 export type Page = 'home' | 'settings' | 'trends' | 'habit-detail' | 'journal'
 
@@ -179,6 +180,7 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
           </div>
 
           <div className="flex items-center gap-3">
+            <SyncIndicator />
             {deferredPrompt && (
               <button
                 onClick={handleInstallClick}

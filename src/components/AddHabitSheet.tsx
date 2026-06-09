@@ -109,24 +109,26 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
       setType(habitToEdit.type);
       setFrequency(habitToEdit.frequency);
       setTarget(habitToEdit.target);
-      setPassPercentage(habitToEdit.passPercentage ?? (habitToEdit.type === 'positive' ? 100 : 100));
+      setPassPercentage(habitToEdit.passPercentage ?? 100);
       setIcon(habitToEdit.icon || '💪');
       setColor(habitToEdit.color || PRESET_COLORS[0]);
       setWeekdays(habitToEdit.weekdays || [1, 2, 3, 4, 5, 6, 0]);
     } else {
-      // Reset form
-      setName('');
-      setDescription('');
-      setType('positive');
-      setFrequency('daily');
-      setTarget(1);
-      setPassPercentage(type === 'positive' ? 100 : 100);
-      setIcon('💪');
-      setColor(PRESET_COLORS[0]);
-      setWeekdays([1, 2, 3, 4, 5, 6, 0]);
+      // Reset form ONLY when opening a new habit sheet
+      if (isOpen) {
+        setName('');
+        setDescription('');
+        setType('positive');
+        setFrequency('daily');
+        setTarget(1);
+        setPassPercentage(100);
+        setIcon('💪');
+        setColor(PRESET_COLORS[0]);
+        setWeekdays([1, 2, 3, 4, 5, 6, 0]);
+      }
     }
     setError('');
-  }, [habitToEdit, isOpen, type]);
+  }, [habitToEdit, isOpen]);
 
   // Handle escape key to close
   useEffect(() => {

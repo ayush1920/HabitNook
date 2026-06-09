@@ -4,6 +4,20 @@ import type { Habit, HabitEntry } from './database';
 import { registerSyncTrigger as registerHabitSync } from './habits';
 import { registerSyncTrigger as registerEntrySync } from './entries';
 
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
+let currentSyncStatus: SyncStatus = 'idle';
+const syncListeners = new Set<(status: SyncStatus) => void>();
+
+export function onSyncStatusChange(callback: (status: SyncStatus) => void) {
+  syncListeners.add(callback);
+  callback(currentSyncStatus);
+  return () => { syncListeners.delete(callback); };
+}
+
+function setSyncStatus(status: SyncStatus) {
+  currentSyncStatus = status;
+  syncListeners.forEach(cb => cb(status));
+}
 // Debounce handle for auto-syncing local changes
 let syncDebounceTimeout: any = null;
 let isSyncingInProgress = false;
@@ -14,7 +28,7 @@ export function initializeAutomatedSync() {
     if (syncDebounceTimeout) clearTimeout(syncDebounceTimeout);
     syncDebounceTimeout = setTimeout(() => {
       syncDataWithSupabase();
-    }, 4000); // 4-second debounce to batch saves
+    }, 2000); // 2-second debounce to batch saves
   };
 
   registerHabitSync(trigger);
@@ -43,6 +57,7 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
 
   // Ensure network is active
   if (!navigator.onLine) {
+    setSyncStatus('error');
     return { success: false, error: 'Device is offline' };
   }
 
@@ -53,6 +68,7 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
 
   const userId = session.user.id;
   isSyncingInProgress = true;
+  setSyncStatus('syncing');
   console.log('[SyncEngine] Starting offline-first reconciliation...');
 
   try {
@@ -232,9 +248,11 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
     }
 
     console.log('[SyncEngine] Synchronized successfully. Conflicts overridden:', totalConflictsFixed);
+    setSyncStatus('synced');
     return { success: true };
   } catch (err: any) {
     console.error('[SyncEngine] Failed sync operations:', err);
+    setSyncStatus('error');
     return { success: false, error: err.message || 'Sync failed' };
   } finally {
     isSyncingInProgress = false;
