@@ -273,19 +273,25 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
           await db.entries.put(remoteEntryWithSyncFlag as HabitEntry);
         } else {
           // Local is newer, upload to Supabase
-          const { error } = await supabase.from('entries').upsert({
-            id: le.id,
-            habitId: le.habitId,
-            date: le.date,
-            value: le.value,
-            remark: le.remark,
-            createdAt: le.createdAt,
-            updatedAt: le.updatedAt,
-          });
-          if (!error) {
-            await db.entries.update(le.id, { _synced: true });
+          // Wait, if the parent habit no longer exists in the cloud, this entry is an orphan because the habit was deleted remotely!
+          if (remoteHabitIds.has(le.habitId)) {
+            const { error } = await supabase.from('entries').upsert({
+              id: le.id,
+              habitId: le.habitId,
+              date: le.date,
+              value: le.value,
+              remark: le.remark,
+              createdAt: le.createdAt,
+              updatedAt: le.updatedAt,
+            });
+            if (!error) {
+              await db.entries.update(le.id, { _synced: true });
+            } else {
+              console.error('[SyncEngine] Error pushing updated entry:', error);
+            }
           } else {
-            console.error('[SyncEngine] Error pushing updated entry:', error);
+            // Orphaned entry. The parent habit was deleted on another device.
+            await db.entries.delete(le.id);
           }
         }
       }
@@ -298,8 +304,12 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
           // Deleted remotely! Delete locally
           await db.entries.delete(le.id);
         } else {
-          // Check if its parent habit is present in remote before uploading to satisfy foreign key RLS constraints
-          if (remoteHabitIds.has(le.habitId) || (localHabitsMap.get(le.habitId) as any)?._synced) {
+          // Only upload if parent habit exists in cloud, OR if parent habit is a brand new offline creation.
+          const isParentInCloud = remoteHabitIds.has(le.habitId);
+          const parentLocal = localHabitsMap.get(le.habitId);
+          const isParentNewLocal = parentLocal && !(parentLocal as any)._synced;
+
+          if (isParentInCloud || isParentNewLocal) {
             const { error } = await supabase.from('entries').insert({
               id: le.id,
               habitId: le.habitId,
@@ -314,6 +324,9 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
             } else {
               console.error('[SyncEngine] Error inserting local entry to cloud:', error);
             }
+          } else {
+             // Parent habit was deleted remotely, so this entry is orphaned.
+             await db.entries.delete(le.id);
           }
         }
       }

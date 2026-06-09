@@ -42,7 +42,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'positive' | 'limiting'>('positive');
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [target, setTarget] = useState<number>(1);
+  const [target, setTarget] = useState<number | ''>(1);
   const [passPercentage, setPassPercentage] = useState<number>(100);
   const [icon, setIcon] = useState('💪');
   const [color, setColor] = useState(PRESET_COLORS[0]);
@@ -147,7 +147,7 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
       setError('Please enter a habit name.');
       return;
     }
-    if (target <= 0) {
+    if (target === '' || target <= 0) {
       setError(type === 'positive' ? 'Target goal must be greater than 0.' : 'Limit must be greater than 0.');
       return;
     }
@@ -289,7 +289,11 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
                   type="number"
                   min="1"
                   value={target}
-                  onChange={(e) => setTarget(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') setTarget('');
+                    else setTarget(Math.max(1, parseInt(val) || 1));
+                  }}
                   className="w-full px-3 py-2.5 bg-surface-2 border border-border text-base md:text-sm text-text-primary rounded-xl focus:outline-none focus:border-accent transition-all"
                 />
                 <span className="text-xs text-text-tertiary whitespace-nowrap">
@@ -312,11 +316,11 @@ export default function AddHabitSheet({ isOpen, onClose, onSave, habitToEdit }: 
             
             {type === 'positive' ? (
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                The minimum completion rate required to maintain your active streak. (Currently: log at least <strong className="text-text-primary font-mono">{Math.ceil(target * ((passPercentage ?? 100) / 100))}</strong> to keep streak valid).
+                The minimum completion rate required to maintain your active streak. (Currently: log at least <strong className="text-text-primary font-mono">{Math.ceil((Number(target) || 1) * ((passPercentage ?? 100) / 100))}</strong> to keep streak valid).
               </p>
             ) : (
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                The allowed limit buffer percentage before breaking streak. E.g., 100% means you must stay exactly under target, 150% allows logging up to <strong className="text-text-primary font-mono">{Math.ceil(target * ((passPercentage ?? 100) / 100))}</strong>.
+                The allowed limit buffer percentage before breaking streak. E.g., 100% means you must stay exactly under target, 150% allows logging up to <strong className="text-text-primary font-mono">{Math.ceil((Number(target) || 1) * ((passPercentage ?? 100) / 100))}</strong>.
               </p>
             )}
 
