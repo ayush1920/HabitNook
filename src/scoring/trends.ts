@@ -135,6 +135,9 @@ export function getTimeline(
   const periods: TimelinePeriod[] = [];
   const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
   const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  
+  const createdDate = new Date(habit.createdAt);
+  createdDate.setHours(0, 0, 0, 0);
 
   if (habit.frequency === 'daily') {
     const current = new Date(start);
@@ -145,8 +148,12 @@ export function getTimeline(
       const dateStr = `${year}-${month}-${day}`;
 
       const actual = entryMap.has(dateStr) ? entryMap.get(dateStr)! : -2; // -2 represents unlogged
-      const score = scoreHabit(habit, actual, dateStr);
+      let score = scoreHabit(habit, actual, dateStr);
       const label = current.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+      if (current < createdDate) {
+        score = null; // Habit didn't exist yet
+      }
 
       periods.push({
         dateStr,
@@ -191,8 +198,12 @@ export function getTimeline(
 
       // If no entries at all in the week, it counts as unlogged
       const finalActual = hasWeeklyEntry ? actual : -2;
-      const score = scoreHabit(habit, finalActual);
+      let score = scoreHabit(habit, finalActual);
       const label = `Wk of ${current.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+
+      if (weekEnd < createdDate) {
+        score = null; // Habit didn't exist yet
+      }
 
       periods.push({
         dateStr,
@@ -231,8 +242,13 @@ export function getTimeline(
       }
 
       const finalActual = hasMonthlyEntry ? actual : -2;
-      const score = scoreHabit(habit, finalActual);
+      let score = scoreHabit(habit, finalActual);
       const label = current.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+
+      const monthEnd = new Date(year, current.getMonth() + 1, 0);
+      if (monthEnd < createdDate) {
+        score = null; // Habit didn't exist yet
+      }
 
       periods.push({
         dateStr,

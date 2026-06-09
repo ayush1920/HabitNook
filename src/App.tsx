@@ -250,6 +250,7 @@ function App() {
               setIsLogSheetOpen(true)
             }}
             onOpenJournal={() => setCurrentPage('journal')}
+            refreshTrigger={refreshTrigger}
           />
         )
       case 'journal':

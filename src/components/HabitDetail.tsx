@@ -13,7 +13,7 @@ import remarkGfm from 'remark-gfm';
 import { format, startOfWeek, differenceInDays, startOfMonth } from 'date-fns';
 import type { Habit, HabitEntry } from '../db/database';
 import { getEntriesForHabit } from '../db/entries';
-import { scoreHabit, getScoreColorClass, calculateStreak } from '../scoring/engine';
+import { scoreHabit, getScoreColorClass, calculateStreak, scorePositive, scoreLimiting } from '../scoring/engine';
 import { getTimeline, movingAverage, trendDirection, weekdayPattern, distribution } from '../scoring/trends';
 
 interface HabitDetailProps {
@@ -23,11 +23,12 @@ interface HabitDetailProps {
   onDelete: (habitId: string) => void;
   onLogClick: (dateStr?: string) => void;
   onOpenJournal?: () => void;
+  refreshTrigger?: number;
 }
 
 type PeriodType = '1w' | '1m' | '3m' | '6m';
 
-export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClick, onOpenJournal }: HabitDetailProps) {
+export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClick, onOpenJournal, refreshTrigger }: HabitDetailProps) {
   const [entries, setEntries] = useState<HabitEntry[]>([]);
   const [period, setPeriod] = useState<PeriodType>('1m');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -50,6 +51,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
   const [trendPageOffset, setTrendPageOffset] = useState(0);
   const [heatmapPageOffset, setHeatmapPageOffset] = useState(0);
   const [activeWeeklyRemarkIdx, setActiveWeeklyRemarkIdx] = useState<number>(-1);
+  const [showPercentage, setShowPercentage] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   // Touch detection
@@ -175,7 +177,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
 
   useEffect(() => {
     fetchEntries();
-  }, [habit.id]);
+  }, [habit.id, refreshTrigger]);
 
   // Determine date range based on period selector and current page offset
   const getPeriodRange = (): { start: Date; end: Date; label: string } => {
@@ -256,7 +258,22 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
     return habit.target;
   };
 
-  const aggregatedData: { name: string; value: number; expected: number; tooltipRange?: string; isActive?: boolean }[] = [];
+  const aggregatedData: { name: string; value: number | null; expected: number; percentage: number | null; tooltipRange?: string; isActive?: boolean }[] = [];
+  
+  const createdDate = new Date(habit.createdAt);
+  createdDate.setHours(0, 0, 0, 0);
+
+  const calculatePercentage = (val: number | null, exp: number, hasEntry: boolean, periodEnd: Date) => {
+    if (periodEnd < createdDate) return null;
+    if (!hasEntry) return null;
+    if (val === null) return null;
+    if (exp <= 0) return 0;
+    if (habit.type === 'positive') {
+      return scorePositive(val, exp);
+    } else {
+      return scoreLimiting(val, exp);
+    }
+  };
 
   if (aggregationMode === 'daily') {
     const map = new Map<string, number>();
@@ -271,11 +288,16 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
       if (habit.frequency === 'daily' && habit.weekdays && habit.weekdays.length > 0) {
         isActive = habit.weekdays.includes(curr.getDay());
       }
+      if (curr < createdDate) isActive = false;
 
+      const hasEntry = map.has(dStr);
+      const value = hasEntry ? map.get(dStr)! : null;
+      const expected = Number(getExpectedForRange(curr, curr).toFixed(1));
       aggregatedData.push({
         name: format(curr, 'MMM d'),
-        value: map.get(dStr) || 0,
-        expected: Number(getExpectedForRange(curr, curr).toFixed(1)),
+        value,
+        expected,
+        percentage: calculatePercentage(value, expected, hasEntry, curr),
         tooltipRange: format(curr, 'MMM d, yyyy') + (!isActive ? ' (Inactive)' : ''),
         isActive
       });
@@ -297,10 +319,14 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
       const endOfWeek = new Date(curr);
       endOfWeek.setDate(endOfWeek.getDate() + 6);
       const actualEnd = endOfWeek > endDate ? endDate : endOfWeek;
+      const hasEntry = map.has(key);
+      const value = hasEntry ? map.get(key)! : null;
+      const expected = Number(getExpectedForRange(curr, endOfWeek).toFixed(1));
       aggregatedData.push({
         name: `Wk of ${format(curr, 'MMM d')}`,
-        value: map.get(key) || 0,
-        expected: Number(getExpectedForRange(curr, actualEnd).toFixed(1)),
+        value,
+        expected,
+        percentage: calculatePercentage(value, expected, hasEntry, actualEnd),
         tooltipRange: `${format(curr, 'MMM d')} - ${format(endOfWeek, 'MMM d, yyyy')}`
       });
       curr.setDate(curr.getDate() + 7);
@@ -321,10 +347,14 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
       const fEnd = new Date(fStart);
       fEnd.setDate(fEnd.getDate() + 13);
       const actualEnd = fEnd > endDate ? endDate : fEnd;
+      const hasEntry = map.has(i);
+      const value = hasEntry ? map.get(i)! : null;
+      const expected = Number(getExpectedForRange(fStart, fEnd).toFixed(1));
       aggregatedData.push({
         name: `${format(fStart, 'MM/dd')}`,
-        value: map.get(i) || 0,
-        expected: Number(getExpectedForRange(fStart, actualEnd).toFixed(1)),
+        value,
+        expected,
+        percentage: calculatePercentage(value, expected, hasEntry, actualEnd),
         tooltipRange: `${format(fStart, 'MMM d, yyyy')} - ${format(fEnd, 'MMM d, yyyy')}`
       });
     }
@@ -343,10 +373,14 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
       const key = format(curr, 'yyyy-MM-dd');
       const mEnd = new Date(curr.getFullYear(), curr.getMonth() + 1, 0);
       const actualEnd = mEnd > endDate ? endDate : mEnd;
+      const hasEntry = map.has(key);
+      const value = hasEntry ? map.get(key)! : null;
+      const expected = Number(getExpectedForRange(curr, mEnd).toFixed(1));
       aggregatedData.push({
         name: format(curr, 'MMM yy'),
-        value: map.get(key) || 0,
-        expected: Number(getExpectedForRange(curr, actualEnd).toFixed(1)),
+        value,
+        expected,
+        percentage: calculatePercentage(value, expected, hasEntry, actualEnd),
         tooltipRange: format(curr, 'MMMM yyyy')
       });
       curr.setMonth(curr.getMonth() + 1);
@@ -1175,13 +1209,28 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 <BarChart2 className="w-[22px] h-[22px] text-accent" />
                 <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">Logged Values Over Time</h3>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+                <div className="flex gap-1 bg-surface-3 p-1 rounded-lg w-full sm:w-auto justify-between sm:justify-start">
+                  <button
+                    onClick={() => setShowPercentage(false)}
+                    className={`flex-1 sm:flex-none px-3 py-1.5 text-[11px] sm:text-[13px] font-bold rounded-md transition-colors ${!showPercentage ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  >
+                    Values
+                  </button>
+                  <button
+                    onClick={() => setShowPercentage(true)}
+                    className={`flex-1 sm:flex-none px-3 py-1.5 text-[11px] sm:text-[13px] font-bold rounded-md transition-colors ${showPercentage ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                  >
+                    Score
+                  </button>
+                </div>
+                <div className="w-px h-6 bg-border hidden sm:block"></div>
                 <div className="flex gap-1 bg-surface-3 p-1 rounded-lg w-full sm:w-auto justify-between sm:justify-start">
                   {(['daily', 'weekly', 'fortnightly', 'monthly'] as const).map(mode => (
                     <button
                       key={mode}
                       onClick={() => setAggregationMode(mode)}
-                      className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-[13px] font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                      className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 text-[11px] sm:text-[13px] font-bold rounded-md transition-colors capitalize ${aggregationMode === mode ? 'bg-surface-1 text-accent shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                     >
                       {mode}
                     </button>
@@ -1212,7 +1261,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 </div>
               </div>
             </div>
-            <div className="analytics-section-body pt-5">
+            <div className="analytics-section-body">
               <div className="h-70 w-full chart-container min-w-0" {...loggedValuesSwipeHandlers}>
                 {aggregatedData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-text-tertiary">
@@ -1230,7 +1279,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                       return (
                         <BarChart 
                           data={visibleData} 
-                          margin={{ top: 15, right: 10, left: -25, bottom: 0 }}
+                          margin={{ top: 25, right: 10, left: -25, bottom: 0 }}
                           onMouseMove={(state) => {
                             if (state && state.activeTooltipIndex !== undefined) {
                               setLoggedValuesHoveredIdx(state.activeTooltipIndex);
@@ -1257,38 +1306,51 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                             fontSize={9} 
                             tickLine={false} 
                             domain={[0, (dataMax: number) => {
-                              const chartMax = visibleData.reduce((m, item) => Math.max(m, item.value, item.expected || 0), 0);
+                              if (showPercentage) return 100;
+                              const chartMax = visibleData.reduce((m, item) => Math.max(m, item.value || 0, item.expected || 0), 0);
                               return Math.max(dataMax, Math.ceil(chartMax * 1.15));
                             }]} 
                           />
                           <Tooltip 
                             active={isTouchDevice ? (!isSwiping && loggedValuesActiveIdx !== null && loggedValuesHoveredIdx === loggedValuesActiveIdx) : undefined}
                             cursor={false}
-                            formatter={(value, _name, props) => [
-                              props.payload.expected && props.payload.expected > 0 
-                                ? `${value} / ${props.payload.expected}` 
-                                : value, 
-                              'Logged Value'
-                            ]}
+                            formatter={(value, _name, props) => {
+                              if (showPercentage) return [`${Math.round(props.payload.percentage)}%`, 'Score'];
+                              return [
+                                props.payload.expected && props.payload.expected > 0 
+                                  ? `${value} / ${props.payload.expected}` 
+                                  : value, 
+                                'Logged Value'
+                              ];
+                            }}
                             labelFormatter={(label, payload) => payload?.[0]?.payload?.tooltipRange || label}
                             contentStyle={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)' }}
                             itemStyle={{ color: 'var(--text-primary)' }}
                           />
                           <Bar 
-                            dataKey="value" 
+                            dataKey={showPercentage ? "percentage" : "value"} 
                             radius={[4, 4, 0, 0]} 
                             maxBarSize={40}
                           >
-                            {visibleData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.isActive === false ? '#333333' : (habit.color || '#a78bfa')} />
-                            ))}
+                            {visibleData.map((entry, index) => {
+                              let barColor = habit.color || '#a78bfa';
+                              if (showPercentage && entry.expected > 0 && entry.percentage !== null) {
+                                if (entry.percentage >= 75) barColor = 'var(--color-success)';
+                                else if (entry.percentage >= 40) barColor = 'var(--color-warning)';
+                                else barColor = 'var(--color-danger)';
+                              }
+                              return <Cell key={`cell-${index}`} fill={entry.isActive === false ? '#333333' : barColor} />;
+                            })}
                             <LabelList 
-                              dataKey="value" 
+                              dataKey={showPercentage ? "percentage" : "value"} 
                               position="top" 
                               content={(props: any) => {
                                 const { x, y, width, value, index } = props;
+                                if (value === null || value === undefined) return null;
                                 const expected = visibleData[index]?.expected;
-                                const text = (expected && expected > 0) ? `${value}/${expected}` : value;
+                                const text = showPercentage 
+                                  ? Math.round(value).toString()
+                                  : ((expected && expected > 0) ? `${value}/${expected}` : value);
                                 return (
                                   <text x={x + width / 2} y={y - 8} fill="var(--text-secondary)" fontSize={9} textAnchor="middle" fontWeight="bold">
                                     {text}
@@ -1342,7 +1404,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 </button>
               </div>
             </div>
-             <div className="analytics-section-body pt-5" {...heatmapSwipeHandlers}>
+             <div className="analytics-section-body" {...heatmapSwipeHandlers}>
                {renderCalendarHeatmap()}
              </div>
           </div>
@@ -1352,7 +1414,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
               <Calendar className="w-[22px] h-[22px] text-accent" />
               <h3 className="text-[15px] font-extrabold text-text-primary uppercase tracking-wider">12-Month Calendar</h3>
             </div>
-            <div className="analytics-section-body" style={{ paddingTop: '24px' }}>
+            <div className="analytics-section-body">
               {renderTwelveMonthCalendar()}
             </div>
           </div>
@@ -1385,7 +1447,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                 </button>
               </div>
             </div>
-            <div className="analytics-section-body pt-5">
+            <div className="analytics-section-body">
               <div className="h-70 w-full chart-container min-w-0" {...trendSwipeHandlers}>
                 {chartData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-text-tertiary">
@@ -1598,7 +1660,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
                   Open Journal <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </div>
-              <div className="analytics-section-body" style={{ paddingTop: '24px' }} {...weeklyRemarksSwipeHandlers}>
+              <div className="analytics-section-body" {...weeklyRemarksSwipeHandlers}>
                 {(() => {
                   // Reconstruct timeline segmented into weeks based on target periods
                   const weekStartDates: Date[] = [];

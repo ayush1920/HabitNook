@@ -405,20 +405,32 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
               {/* Target comparison hint */}
               {!loading && value >= 0 && (
                 <span className={`text-[10px] mt-4 font-semibold ${habit.type === 'positive'
-                    ? value >= habit.target
+                    ? habit.frequency !== 'daily'
                       ? 'text-emerald-400'
-                      : 'text-text-tertiary'
-                    : value > habit.target
-                      ? 'text-rose-400'
-                      : 'text-emerald-400'
+                      : value >= habit.target
+                        ? 'text-emerald-400'
+                        : 'text-text-tertiary'
+                    : habit.frequency !== 'daily'
+                      ? value > habit.target
+                        ? 'text-rose-400'
+                        : 'text-emerald-400'
+                      : value > habit.target
+                        ? 'text-rose-400'
+                        : 'text-emerald-400'
                   }`}>
                   {habit.type === 'positive'
-                    ? value >= habit.target
-                      ? '🎉 Goal achieved for this date!'
-                      : `${habit.target - value} more needed to hit target`
-                    : value > habit.target
-                      ? `⚠️ Exceeded limit by ${value - habit.target}`
-                      : '✅ Within limit'
+                    ? habit.frequency !== 'daily'
+                      ? '✅ Log saved'
+                      : value >= habit.target
+                        ? '🎉 Goal achieved for this date!'
+                        : `${habit.target - value} more needed to hit target`
+                    : habit.frequency !== 'daily'
+                      ? value > habit.target
+                        ? `⚠️ Exceeded ${habit.frequency} limit by ${value - habit.target}`
+                        : `✅ Logged (Limit is ${habit.target} per ${habit.frequency.replace('ly', '')})`
+                      : value > habit.target
+                        ? `⚠️ Exceeded limit by ${value - habit.target}`
+                        : '✅ Within limit'
                   }
                 </span>
               )}
