@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Download, FileText, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar, Download, FileText, Copy, Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import type { Habit, HabitEntry } from '../db/database';
 import { getEntriesForHabit } from '../db/entries';
+import { db } from '../db/database';
 
 interface HabitJournalProps {
   habit: Habit;
@@ -18,6 +19,7 @@ export default function HabitJournal({ habit, onBack }: HabitJournalProps) {
   const [filterMode, setFilterMode] = useState<'day' | '1w' | '1m' | '3m' | '6m' | '1y'>('1w');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<HabitEntry | null>(null);
 
   const copyToClipboard = (id: string, text: string) => {
     if (navigator.clipboard && window.isSecureContext) {
@@ -41,6 +43,17 @@ export default function HabitJournal({ habit, onBack }: HabitJournalProps) {
       } finally {
         textArea.remove();
       }
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!entryToDelete) return;
+    try {
+      await db.entries.update(entryToDelete.id, { remark: '' });
+      setEntryToDelete(null);
+      loadEntries();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -298,17 +311,52 @@ export default function HabitJournal({ habit, onBack }: HabitJournalProps) {
                       {entry.remark || ''}
                     </ReactMarkdown>
                   </div>
-                  <button
-                    onClick={() => copyToClipboard(entry.id, entry.remark || '')}
-                    className="absolute top-4 right-4 sm:static p-1.5 sm:p-2 rounded-lg bg-surface-2/50 sm:bg-transparent border border-border/50 sm:border-transparent text-text-tertiary hover:text-accent hover:bg-surface-2 transition-all active:scale-95 z-10"
-                    title="Copy Markdown"
-                  >
-                    {copiedId === entry.id ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2 absolute top-4 right-4 sm:static z-10">
+                    <button
+                      onClick={() => copyToClipboard(entry.id, entry.remark || '')}
+                      className="p-1.5 sm:p-2 rounded-lg bg-surface-2/50 sm:bg-transparent border border-border/50 sm:border-transparent text-text-tertiary hover:text-accent hover:bg-surface-2 transition-all active:scale-95"
+                      title="Copy Markdown"
+                    >
+                      {copiedId === entry.id ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => setEntryToDelete(entry)}
+                      className="p-1.5 sm:p-2 rounded-lg bg-surface-2/50 sm:bg-transparent border border-border/50 sm:border-transparent text-text-tertiary hover:text-rose-400 hover:bg-rose-500/10 transition-all active:scale-95"
+                      title="Delete Entry"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {entryToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-1/80 backdrop-blur-sm">
+          <div className="bg-surface-2 border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-text-primary mb-2">Delete Journal Entry?</h3>
+            <p className="text-sm text-text-secondary mb-6">
+              Are you sure you want to delete the log remarks for {format(new Date(entryToDelete.date + 'T00:00:00'), 'MMM d, yyyy')}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setEntryToDelete(null)}
+                className="px-4 py-2 text-sm font-bold text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEntry}
+                className="px-4 py-2 text-sm font-bold text-white bg-rose-500 rounded-lg hover:bg-rose-600 transition-colors shadow-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

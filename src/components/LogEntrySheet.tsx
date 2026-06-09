@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Minus, Calendar, CheckCircle2, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Habit } from '../db/database';
@@ -216,7 +216,16 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
               <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">
                 Log Remarks / Memo
               </label>
-              <div className="flex bg-surface-3 rounded-lg p-1 border border-border/50">
+              <div className="flex bg-surface-3 rounded-lg p-1 border border-border/50 items-center">
+                <button
+                  type="button"
+                  onClick={() => setRemark('')}
+                  title="Clear Memo"
+                  className="px-2 py-1 text-text-tertiary hover:text-rose-400 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-px h-4 bg-border/50 mx-1" />
                 <button
                   type="button"
                   onClick={() => setPreviewMode(false)}
@@ -235,7 +244,7 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
             </div>
             
             {previewMode ? (
-              <div className="w-full h-[100px] overflow-y-auto px-4 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl prose prose-sm max-w-none prose-headings:font-bold prose-a:text-accent prose-p:leading-relaxed">
+              <div className="w-full min-h-[300px] overflow-y-auto px-4 py-2.5 bg-surface-2 border border-border text-sm text-text-primary rounded-xl prose prose-sm max-w-none prose-headings:font-bold prose-a:text-accent prose-p:leading-relaxed shadow-inner">
                 {remark.trim() ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {remark}
@@ -256,7 +265,8 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
           </div>
 
           {/* Selector UI based on Target */}
-          {isInactiveDay ? (
+          {!previewMode && (
+            isInactiveDay ? (
             <div className="flex flex-col items-center justify-center py-8 bg-surface-2/40 border border-border/40 rounded-2xl w-full px-4 text-center">
               <span className="text-xl mb-2">🚫</span>
               <p className="text-sm font-semibold text-text-primary">Inactive Day</p>
@@ -418,7 +428,8 @@ export default function LogEntrySheet({ isOpen, onClose, habit, onSave, initialD
                 </span>
               )}
             </div>
-          )}
+          )
+        )}
         </div>
 
         {/* Footer */}
