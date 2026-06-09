@@ -102,17 +102,32 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
   try {
     // ── 1. SYNC DELETIONS FROM LOCAL TO CLOUD ──
     const tombstoned = await db.deletedRecords.toArray();
-    for (const dr of tombstoned) {
-      if (dr.type === 'habit') {
-        const { error } = await supabase.from('habits').delete().eq('id', dr.id);
-        if (error) console.error('[SyncEngine] Cloud deleting habit error:', error);
-      } else if (dr.type === 'entry') {
-        const { error } = await supabase.from('entries').delete().eq('id', dr.id);
-        if (error) console.error('[SyncEngine] Cloud deleting entry error:', error);
+    
+    // Process entries before habits to satisfy foreign key constraints
+    const entryTombstones = tombstoned.filter(dr => dr.type === 'entry');
+    const habitTombstones = tombstoned.filter(dr => dr.type === 'habit');
+    
+    for (const dr of entryTombstones) {
+      const { error } = await supabase.from('entries').delete().eq('id', dr.id);
+      if (error) {
+        console.error('[SyncEngine] Cloud deleting entry error:', error);
+      } else {
+        await db.deletedRecords.delete(dr.id); // Only clear if successful!
       }
-      // Deletion succeeded, clear local tombstone
-      await db.deletedRecords.delete(dr.id);
     }
+
+    for (const dr of habitTombstones) {
+      const { error } = await supabase.from('habits').delete().eq('id', dr.id);
+      if (error) {
+        console.error('[SyncEngine] Cloud deleting habit error:', error);
+      } else {
+        await db.deletedRecords.delete(dr.id); // Only clear if successful!
+      }
+    }
+    
+    // Cache pending tombstones to prevent zombie resurrection later in this sync run
+    const pendingDeletedHabitIds = new Set(habitTombstones.map(dr => dr.id));
+    const pendingDeletedEntryIds = new Set(entryTombstones.map(dr => dr.id));
 
     // ── 2. DOWNLOAD ENTIRE DATA SNAPSHOT FROM CLOUD ──
     const { data: remoteHabitsRaw, error: rhError } = await supabase
@@ -151,22 +166,28 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
 
     // ── 4. RECONCILE REMOTE HABITS INTO LOCAL ──
     for (const rh of remoteHabits) {
+      if (pendingDeletedHabitIds.has(rh.id)) continue; // Skip zombies
       const lh = localHabitsMap.get(rh.id);
+
+      const remoteHabitWithSyncFlag = { ...rh, _synced: true };
 
       if (!lh) {
         // New record created on another device, insert locally
-        await db.habits.put(rh);
+        await db.habits.put(remoteHabitWithSyncFlag as Habit);
       } else {
         const lhTime = Date.parse(lh.updatedAt);
         const rhTime = Date.parse(rh.updatedAt);
 
         if (lhTime === rhTime) {
           // Perfectly matching timestamps - in sync!
+          if (!(lh as any)._synced) {
+            await db.habits.update(lh.id, { _synced: true });
+          }
           continue;
         } else if (lhTime < rhTime) {
           // Cloud copy is newer, overwrite local copy!
           totalConflictsFixed++;
-          await db.habits.put(rh);
+          await db.habits.put(remoteHabitWithSyncFlag as Habit);
         } else {
           // Local copy is newer, push to Supabase
           const { error } = await supabase.from('habits').upsert({
@@ -185,7 +206,11 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
             updatedAt: lh.updatedAt,
             archived: lh.archived,
           });
-          if (error) console.error('[SyncEngine] Error pushing updated habit:', error);
+          if (!error) {
+            await db.habits.update(lh.id, { _synced: true });
+          } else {
+            console.error('[SyncEngine] Error pushing updated habit:', error);
+          }
         }
       }
     }
@@ -193,46 +218,59 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
     // Push local-only habits (not in remote yet, nor deleted) to cloud
     for (const lh of localHabits) {
       if (!remoteHabitIds.has(lh.id)) {
-        // Upload brand new local habit
-        const { error } = await supabase.from('habits').insert({
-          id: lh.id,
-          userId: lh.userId,
-          name: lh.name,
-          description: lh.description,
-          type: lh.type,
-          frequency: lh.frequency,
-          target: lh.target,
-          passPercentage: lh.passPercentage,
-          icon: lh.icon,
-          color: lh.color,
-          weekdays: lh.weekdays,
-          createdAt: lh.createdAt,
-          updatedAt: lh.updatedAt,
-          archived: lh.archived,
-        });
-        if (error) {
-          console.error('[SyncEngine] Error inserting local habit to cloud:', error);
+        if ((lh as any)._synced) {
+           // It was synced before but is missing from remote - it was deleted remotely!
+           await db.habits.delete(lh.id);
+        } else {
+           // Upload brand new local habit
+           const habitUserId = lh.userId === 'local' ? userId : lh.userId;
+           const { error } = await supabase.from('habits').insert({
+             id: lh.id,
+             userId: habitUserId,
+             name: lh.name,
+             description: lh.description,
+             type: lh.type,
+             frequency: lh.frequency,
+             target: lh.target,
+             passPercentage: lh.passPercentage,
+             icon: lh.icon,
+             color: lh.color,
+             weekdays: lh.weekdays,
+             createdAt: lh.createdAt,
+             updatedAt: lh.updatedAt,
+             archived: lh.archived,
+           });
+           if (!error) {
+             await db.habits.update(lh.id, { _synced: true, userId: habitUserId });
+           } else {
+             console.error('[SyncEngine] Error inserting local habit to cloud:', error);
+           }
         }
       }
     }
 
     // ── 5. RECONCILE REMOTE ENTRIES INTO LOCAL ──
     for (const re of remoteEntries) {
+      if (pendingDeletedEntryIds.has(re.id)) continue; // Skip zombies
       const le = localEntriesMap.get(re.id);
+      const remoteEntryWithSyncFlag = { ...re, _synced: true };
 
       if (!le) {
         // Sync new remote entries to IndexedDB
-        await db.entries.put(re);
+        await db.entries.put(remoteEntryWithSyncFlag as HabitEntry);
       } else {
         const leTime = Date.parse(le.updatedAt);
         const reTime = Date.parse(re.updatedAt);
 
         if (leTime === reTime) {
+          if (!(le as any)._synced) {
+            await db.entries.update(le.id, { _synced: true });
+          }
           continue;
         } else if (leTime < reTime) {
           // Cloud copy is newer, overwrite local
           totalConflictsFixed++;
-          await db.entries.put(re);
+          await db.entries.put(remoteEntryWithSyncFlag as HabitEntry);
         } else {
           // Local is newer, upload to Supabase
           const { error } = await supabase.from('entries').upsert({
@@ -244,7 +282,11 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
             createdAt: le.createdAt,
             updatedAt: le.updatedAt,
           });
-          if (error) console.error('[SyncEngine] Error pushing updated entry:', error);
+          if (!error) {
+            await db.entries.update(le.id, { _synced: true });
+          } else {
+            console.error('[SyncEngine] Error pushing updated entry:', error);
+          }
         }
       }
     }
@@ -252,18 +294,27 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
     // Push local-only entries that don't exist on remote yet to cloud
     for (const le of localEntries) {
       if (!remoteEntriesMap.has(le.id)) {
-        // Check if its parent habit is present in remote before uploading to satisfy foreign key RLS constraints
-        if (remoteHabitIds.has(le.habitId)) {
-          const { error } = await supabase.from('entries').insert({
-            id: le.id,
-            habitId: le.habitId,
-            date: le.date,
-            value: le.value,
-            remark: le.remark,
-            createdAt: le.createdAt,
-            updatedAt: le.updatedAt,
-          });
-          if (error) console.error('[SyncEngine] Error inserting local entry to cloud:', error);
+        if ((le as any)._synced) {
+          // Deleted remotely! Delete locally
+          await db.entries.delete(le.id);
+        } else {
+          // Check if its parent habit is present in remote before uploading to satisfy foreign key RLS constraints
+          if (remoteHabitIds.has(le.habitId) || (localHabitsMap.get(le.habitId) as any)?._synced) {
+            const { error } = await supabase.from('entries').insert({
+              id: le.id,
+              habitId: le.habitId,
+              date: le.date,
+              value: le.value,
+              remark: le.remark,
+              createdAt: le.createdAt,
+              updatedAt: le.updatedAt,
+            });
+            if (!error) {
+              await db.entries.update(le.id, { _synced: true });
+            } else {
+              console.error('[SyncEngine] Error inserting local entry to cloud:', error);
+            }
+          }
         }
       }
     }

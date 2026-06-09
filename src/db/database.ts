@@ -15,6 +15,7 @@ export interface Habit {
   createdAt: string;   // ISO date string
   updatedAt: string;   // ISO date string for sync tracking
   archived: boolean;
+  _synced?: boolean;   // Internal flag to track if record was ever synced to cloud
 }
 
 export interface HabitEntry {
@@ -25,6 +26,7 @@ export interface HabitEntry {
   remark?: string;     // custom markdown/text remark for the day
   createdAt: string;   // ISO date string
   updatedAt: string;   // ISO date string for sync tracking
+  _synced?: boolean;   // Internal flag to track if record was ever synced to cloud
 }
 
 export interface DeletedRecord {

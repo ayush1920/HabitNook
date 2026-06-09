@@ -35,10 +35,16 @@ export async function updateHabit(id: string, updates: Partial<Omit<Habit, 'id' 
 export async function deleteHabit(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.transaction('rw', [db.habits, db.entries, db.deletedRecords], async () => {
-    await db.habits.delete(id);
+    // Track deletion for all associated entries first
+    const entries = await db.entries.where('habitId').equals(id).toArray();
+    for (const entry of entries) {
+      await db.deletedRecords.put({ id: entry.id, type: 'entry', deletedAt: now });
+    }
     await db.entries.where('habitId').equals(id).delete();
-    // Track deletion for offline sync tombstone
+    
+    // Then track deletion for the habit
     await db.deletedRecords.put({ id, type: 'habit', deletedAt: now });
+    await db.habits.delete(id);
   });
   // Trigger async sync if online and logged in
   triggerAutomaticSync();
