@@ -57,7 +57,7 @@ export default function Login({ onGuestSignIn }: LoginProps) {
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-accent-dim mb-4">
             <CheckCircle2 className="w-6 h-6 text-accent" />
           </div>
-          <h1 className="text-2xl font-semibold text-text-primary tracking-tight mb-1">Habit Loop</h1>
+          <h1 className="text-2xl font-semibold text-text-primary tracking-tight mb-1">HabitNook</h1>
           <p className="text-sm text-text-secondary">Build consistency. Track progress.</p>
         </div>
 

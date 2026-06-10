@@ -37,7 +37,7 @@ function App() {
 
   // Theme support
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
-    const saved = localStorage.getItem('habitloop_theme')
+    const saved = localStorage.getItem('habitnook_theme')
     return (saved as 'light' | 'dark' | 'system') || 'system'
   })
 
@@ -49,13 +49,13 @@ function App() {
     } else if (theme === 'light') {
       root.classList.add('light')
     }
-    localStorage.setItem('habitloop_theme', theme)
+    localStorage.setItem('habitnook_theme', theme)
   }, [theme])
 
   // Listen for authentication events
   useEffect(() => {
     // Check if there is an offline guest session stored in localStorage
-    const savedGuest = localStorage.getItem('habitloop_guest_user')
+    const savedGuest = localStorage.getItem('habitnook_guest_user')
     if (savedGuest) {
       setUser(JSON.parse(savedGuest))
       setLoading(false)
@@ -63,7 +63,7 @@ function App() {
     }
 
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) console.error('[HabitLoop] getSession error:', error.message)
+      if (error) console.error('[HabitNook] getSession error:', error.message)
       if (session) {
         setUser(session.user)
         if (window.location.hash.includes('access_token')) {
@@ -77,7 +77,7 @@ function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       // If we are in guest mode, don't let Supabase null session override it immediately
-      const currentGuest = localStorage.getItem('habitloop_guest_user')
+      const currentGuest = localStorage.getItem('habitnook_guest_user')
       if (currentGuest) {
         setUser(JSON.parse(currentGuest))
       } else {
@@ -106,18 +106,18 @@ function App() {
   const handleGuestSignIn = () => {
     const guestUser = {
       id: 'local',
-      email: 'guest@habitloop.local',
+      email: 'guest@habitnook.local',
       user_metadata: {
         full_name: 'Guest User',
       }
     } as any
-    localStorage.setItem('habitloop_guest_user', JSON.stringify(guestUser))
+    localStorage.setItem('habitnook_guest_user', JSON.stringify(guestUser))
     setUser(guestUser)
   }
 
   // Handle custom sign out that also clears local storage guest sessions
   const handleSignOut = async () => {
-    localStorage.removeItem('habitloop_guest_user')
+    localStorage.removeItem('habitnook_guest_user')
     await supabase.auth.signOut()
     setUser(null)
     setCurrentPage('home')

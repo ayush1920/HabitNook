@@ -134,7 +134,7 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl bg-surface-3 text-xs">
           <div>
             <p className="text-text-primary font-bold text-sm">Theme Mode</p>
-            <p className="text-text-secondary mt-1">Select how Habit Loop looks on your device.</p>
+            <p className="text-text-secondary mt-1">Select how HabitNook looks on your device.</p>
           </div>
           <div className="flex items-center gap-0.5 bg-surface-2 border border-border/60 p-0.5 rounded-xl self-start sm:self-center">
             {(['light', 'dark', 'system'] as const).map((mode) => {

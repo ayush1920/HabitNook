@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Habit Loop',
-        short_name: 'HabitLoop',
+        name: 'HabitNook',
+        short_name: 'HabitNook',
         description: 'Premium offline-first habit tracker powered by Supabase.',
         theme_color: '#0f172a',
         background_color: '#0f172a',

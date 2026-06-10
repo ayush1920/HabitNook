@@ -862,9 +862,9 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
         </div>
 
         {/* Row 2: Status Indicators (Current Score + Trend Slope) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           {/* Card: Current Score */}
-          <div className="group relative overflow-hidden bg-surface-1/70 backdrop-blur-md border border-border/85 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:bg-white/10 dark:hover:bg-white/5 hover:border-accent/25 cursor-default shadow-xs hover:shadow-md hover:-translate-y-0.5 min-h-[105px]">
+          <div className="flex-1 group relative overflow-hidden bg-surface-1/70 backdrop-blur-md border border-border/85 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:bg-white/10 dark:hover:bg-white/5 hover:border-accent/25 cursor-default shadow-xs hover:shadow-md hover:-translate-y-0.5 min-h-[105px] min-w-[280px]">
             <div>
               <span className="text-[11px] sm:text-xs font-bold text-text-tertiary uppercase tracking-wider block whitespace-nowrap">Current Score</span>
               <span className={`text-base sm:text-lg font-extrabold font-mono mt-2 block leading-none ${
@@ -898,7 +898,7 @@ export default function HabitDetail({ habit, onBack, onEdit, onDelete, onLogClic
           </div>
 
           {/* Card: Trend Slope */}
-          <div className="group relative overflow-hidden bg-surface-1/70 backdrop-blur-md border border-border/85 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:bg-white/10 dark:hover:bg-white/5 hover:border-accent/25 cursor-default shadow-xs hover:shadow-md hover:-translate-y-0.5 min-h-[105px]">
+          <div className="flex-1 group relative overflow-hidden bg-surface-1/70 backdrop-blur-md border border-border/85 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:bg-white/10 dark:hover:bg-white/5 hover:border-accent/25 cursor-default shadow-xs hover:shadow-md hover:-translate-y-0.5 min-h-[105px] min-w-[280px]">
             <div>
               <span className="text-[11px] sm:text-xs font-bold text-text-tertiary uppercase tracking-wider block whitespace-nowrap">Trend Slope</span>
               <div className="mt-2 block leading-none">

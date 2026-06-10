@@ -33,13 +33,13 @@ export interface DeletedRecord {
   deletedAt: string;   // ISO date string
 }
 
-export class HabitLoopDatabase extends Dexie {
+export class HabitNookDatabase extends Dexie {
   habits!: Table<Habit>;
   entries!: Table<HabitEntry>;
   deletedRecords!: Table<DeletedRecord>;
 
   constructor() {
-    super('HabitLoopDatabase');
+    super('HabitNookDatabase');
     this.version(3).stores({
       habits: 'id, userId, archived, updatedAt',
       entries: 'id, habitId, date, [habitId+date], updatedAt',
@@ -48,4 +48,4 @@ export class HabitLoopDatabase extends Dexie {
   }
 }
 
-export const db = new HabitLoopDatabase();
+export const db = new HabitNookDatabase();

@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    '[HabitLoop] Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
+    '[HabitNook] Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
   )
 }
 
@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Common mistake: pasting the service_role key or sb_secret key instead of the anon key
 if (supabaseAnonKey && !supabaseAnonKey.startsWith('eyJ')) {
   console.error(
-    '[HabitLoop] VITE_SUPABASE_ANON_KEY appears to be invalid. ' +
+    '[HabitNook] VITE_SUPABASE_ANON_KEY appears to be invalid. ' +
     'The anon key should be a long JWT starting with "eyJ...". ' +
     'Copy it from: Supabase Dashboard → Project Settings → API → Project API keys → anon / public'
   )

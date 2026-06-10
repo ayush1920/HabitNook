@@ -72,7 +72,7 @@ export default function Layout({ user, children, currentPage, onNavigate, theme,
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent-dim">
             <CheckCircle2 className="w-4 h-4 text-accent" />
           </div>
-          <span className="font-bold text-base text-text-primary tracking-tight">Habit Loop</span>
+          <span className="font-bold text-base text-text-primary tracking-tight">HabitNook</span>
 
         </div>
 
