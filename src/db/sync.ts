@@ -1,0 +1,242 @@
+import { supabase } from '../supabaseClient';
+import { db } from './database';
+import type { Habit, HabitEntry } from './database';
+import { registerSyncTrigger as registerHabitSync } from './habits';
+import { registerSyncTrigger as registerEntrySync } from './entries';
+
+// Debounce handle for auto-syncing local changes
+let syncDebounceTimeout: any = null;
+let isSyncingInProgress = false;
+
+// Register listeners to watch mutations in habits and entries and sync automatically
+export function initializeAutomatedSync() {
+  const trigger = () => {
+    if (syncDebounceTimeout) clearTimeout(syncDebounceTimeout);
+    syncDebounceTimeout = setTimeout(() => {
+      syncDataWithSupabase();
+    }, 4000); // 4-second debounce to batch saves
+  };
+
+  registerHabitSync(trigger);
+  registerEntrySync(trigger);
+
+  // Sync on returning online
+  window.addEventListener('online', () => {
+    console.log('[SyncEngine] Network back online, running sync...');
+    syncDataWithSupabase();
+  });
+}
+
+// Global modal notifier callback
+let conflictAlertCallback: ((message: string) => Promise<void>) | null = null;
+export function registerConflictNotifier(callback: (message: string) => Promise<void>) {
+  conflictAlertCallback = callback;
+}
+
+/**
+ * Perform offline-first bidirection sync with Supabase
+ */
+export async function syncDataWithSupabase(): Promise<{ success: boolean; error?: string }> {
+  if (isSyncingInProgress) {
+    return { success: false, error: 'Sync already in progress' };
+  }
+
+  // Ensure network is active
+  if (!navigator.onLine) {
+    return { success: false, error: 'Device is offline' };
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session || !session.user) {
+    return { success: false, error: 'User is not logged in' };
+  }
+
+  const userId = session.user.id;
+  isSyncingInProgress = true;
+  console.log('[SyncEngine] Starting offline-first reconciliation...');
+
+  try {
+    // ── 1. SYNC DELETIONS FROM LOCAL TO CLOUD ──
+    const tombstoned = await db.deletedRecords.toArray();
+    for (const dr of tombstoned) {
+      if (dr.type === 'habit') {
+        const { error } = await supabase.from('habits').delete().eq('id', dr.id);
+        if (error) console.error('[SyncEngine] Cloud deleting habit error:', error);
+      } else if (dr.type === 'entry') {
+        const { error } = await supabase.from('entries').delete().eq('id', dr.id);
+        if (error) console.error('[SyncEngine] Cloud deleting entry error:', error);
+      }
+      // Deletion succeeded, clear local tombstone
+      await db.deletedRecords.delete(dr.id);
+    }
+
+    // ── 2. DOWNLOAD ENTIRE DATA SNAPSHOT FROM CLOUD ──
+    const { data: remoteHabitsRaw, error: rhError } = await supabase
+      .from('habits')
+      .select('*')
+      .eq('userId', userId);
+    if (rhError) throw rhError;
+
+    const remoteHabits: Habit[] = remoteHabitsRaw || [];
+    const remoteHabitIds = new Set(remoteHabits.map(h => h.id));
+
+    // Fetch entries corresponding to those habits
+    let remoteEntries: HabitEntry[] = [];
+    if (remoteHabits.length > 0) {
+      const habitIds = Array.from(remoteHabitIds);
+      const { data: remoteEntriesRaw, error: reError } = await supabase
+        .from('entries')
+        .select('*')
+        .in('habitId', habitIds);
+      if (reError) throw reError;
+      remoteEntries = remoteEntriesRaw || [];
+    }
+
+    const remoteEntriesMap = new Map<string, HabitEntry>(remoteEntries.map(e => [e.id, e]));
+
+    // ── 3. FETCH LOCAL COPIES ──
+    const localHabits = await db.habits.where('userId').equals(userId).toArray();
+    const localHabitsMap = new Map<string, Habit>(localHabits.map(h => [h.id, h]));
+
+    // Fetch entries belonging to local habits
+    const localHabitIds = localHabits.map(h => h.id);
+    const localEntries = await db.entries.where('habitId').anyOf(localHabitIds.length ? localHabitIds : ['none']).toArray();
+    const localEntriesMap = new Map<string, HabitEntry>(localEntries.map(e => [e.id, e]));
+
+    let totalConflictsFixed = 0;
+
+    // ── 4. RECONCILE REMOTE HABITS INTO LOCAL ──
+    for (const rh of remoteHabits) {
+      const lh = localHabitsMap.get(rh.id);
+
+      if (!lh) {
+        // New record created on another device, insert locally
+        await db.habits.put(rh);
+      } else {
+        const lhTime = Date.parse(lh.updatedAt);
+        const rhTime = Date.parse(rh.updatedAt);
+
+        if (lhTime === rhTime) {
+          // Perfectly matching timestamps - in sync!
+          continue;
+        } else if (lhTime < rhTime) {
+          // Cloud copy is newer, overwrite local copy!
+          totalConflictsFixed++;
+          await db.habits.put(rh);
+        } else {
+          // Local copy is newer, push to Supabase
+          const { error } = await supabase.from('habits').upsert({
+            id: lh.id,
+            userId: lh.userId,
+            name: lh.name,
+            description: lh.description,
+            type: lh.type,
+            frequency: lh.frequency,
+            target: lh.target,
+            passPercentage: lh.passPercentage,
+            icon: lh.icon,
+            color: lh.color,
+            weekdays: lh.weekdays,
+            createdAt: lh.createdAt,
+            updatedAt: lh.updatedAt,
+            archived: lh.archived,
+          });
+          if (error) console.error('[SyncEngine] Error pushing updated habit:', error);
+        }
+      }
+    }
+
+    // Push local-only habits (not in remote yet, nor deleted) to cloud
+    for (const lh of localHabits) {
+      if (!remoteHabitIds.has(lh.id)) {
+        // Upload brand new local habit
+        const { error } = await supabase.from('habits').insert({
+          id: lh.id,
+          userId: lh.userId,
+          name: lh.name,
+          description: lh.description,
+          type: lh.type,
+          frequency: lh.frequency,
+          target: lh.target,
+          passPercentage: lh.passPercentage,
+          icon: lh.icon,
+          color: lh.color,
+          weekdays: lh.weekdays,
+          createdAt: lh.createdAt,
+          updatedAt: lh.updatedAt,
+          archived: lh.archived,
+        });
+        if (error) {
+          console.error('[SyncEngine] Error inserting local habit to cloud:', error);
+        }
+      }
+    }
+
+    // ── 5. RECONCILE REMOTE ENTRIES INTO LOCAL ──
+    for (const re of remoteEntries) {
+      const le = localEntriesMap.get(re.id);
+
+      if (!le) {
+        // Sync new remote entries to IndexedDB
+        await db.entries.put(re);
+      } else {
+        const leTime = Date.parse(le.updatedAt);
+        const reTime = Date.parse(re.updatedAt);
+
+        if (leTime === reTime) {
+          continue;
+        } else if (leTime < reTime) {
+          // Cloud copy is newer, overwrite local
+          totalConflictsFixed++;
+          await db.entries.put(re);
+        } else {
+          // Local is newer, upload to Supabase
+          const { error } = await supabase.from('entries').upsert({
+            id: le.id,
+            habitId: le.habitId,
+            date: le.date,
+            value: le.value,
+            remark: le.remark,
+            createdAt: le.createdAt,
+            updatedAt: le.updatedAt,
+          });
+          if (error) console.error('[SyncEngine] Error pushing updated entry:', error);
+        }
+      }
+    }
+
+    // Push local-only entries that don't exist on remote yet to cloud
+    for (const le of localEntries) {
+      if (!remoteEntriesMap.has(le.id)) {
+        // Check if its parent habit is present in remote before uploading to satisfy foreign key RLS constraints
+        if (remoteHabitIds.has(le.habitId)) {
+          const { error } = await supabase.from('entries').insert({
+            id: le.id,
+            habitId: le.habitId,
+            date: le.date,
+            value: le.value,
+            remark: le.remark,
+            createdAt: le.createdAt,
+            updatedAt: le.updatedAt,
+          });
+          if (error) console.error('[SyncEngine] Error inserting local entry to cloud:', error);
+        }
+      }
+    }
+
+    // ── 6. NOTIFY CONFLICT RECONCILIATIONS ──
+    if (totalConflictsFixed > 0 && conflictAlertCallback) {
+      await conflictAlertCallback(
+        `Conflicting changes detected on another device. Your application data has been successfully reverted to match the latest Supabase cloud version.`
+      );
+    }
+
+    console.log('[SyncEngine] Synchronized successfully. Conflicts overridden:', totalConflictsFixed);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[SyncEngine] Failed sync operations:', err);
+    return { success: false, error: err.message || 'Sync failed' };
+  } finally {
+    isSyncingInProgress = false;
+  }
+}
