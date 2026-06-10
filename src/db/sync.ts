@@ -341,6 +341,7 @@ export async function syncDataWithSupabase(): Promise<{ success: boolean; error?
 
     console.log('[SyncEngine] Synchronized successfully. Conflicts overridden:', totalConflictsFixed);
     setSyncStatus('synced');
+    localStorage.setItem('habitloop_last_sync_time', new Date().toISOString());
     return { success: true };
   } catch (err: any) {
     console.error('[SyncEngine] Failed sync operations:', err);

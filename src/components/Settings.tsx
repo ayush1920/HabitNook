@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { db } from '../db/database'
 import { getPlatform, getInstallInstructions } from '../utils/platform'
+import { onSyncStatusChange } from '../db/sync'
 
 interface SettingsProps {
   user: User
@@ -34,6 +35,7 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
   const [signOutError, setSignOutError] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => localStorage.getItem('habitloop_last_sync_time'))
   const [logIncrement, setLogIncrement] = useState<number>(() => {
     const saved = localStorage.getItem('habitnook_log_increment')
     return saved ? parseFloat(saved) : 1
@@ -54,6 +56,14 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
     window.addEventListener('online', on)
     window.addEventListener('offline', off)
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+
+  useEffect(() => {
+    return onSyncStatusChange((status) => {
+      if (status === 'synced') {
+        setLastSyncTime(localStorage.getItem('habitloop_last_sync_time'))
+      }
+    })
   }, [])
 
   const handleSignOut = async () => {
@@ -337,10 +347,7 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
           <div className="flex justify-between items-center text-text-secondary text-[11px]">
             <span>Last Synced Status:</span>
             <span className="font-mono text-text-primary bg-surface-3 px-2 py-0.5 rounded border border-border/20">
-              {(() => {
-                const last = localStorage.getItem('habitloop_last_sync_time');
-                return last ? new Date(last).toLocaleString() : 'Never synced';
-              })()}
+              {lastSyncTime ? new Date(lastSyncTime).toLocaleString() : 'Never synced'}
             </span>
           </div>
         </div>
@@ -361,7 +368,9 @@ export default function Settings({ user, onSignOutOverride, theme, onThemeChange
               setImportStatus('Syncing with Supabase...');
               const res = await syncDataWithSupabase();
               if (res.success) {
-                localStorage.setItem('habitloop_last_sync_time', new Date().toISOString());
+                const now = new Date().toISOString();
+                localStorage.setItem('habitloop_last_sync_time', now);
+                setLastSyncTime(now);
                 setImportStatus('Manual cloud sync completed successfully!');
                 setTimeout(() => setImportStatus(null), 3000);
               } else {
