@@ -224,8 +224,13 @@ export default function Home({
             sunday.setDate(sunday.getDate() + 6);
             sunday.setHours(23, 59, 59, 999);
 
-            const mStr = monday.toISOString().split('T')[0];
-            const sStr = sunday.toISOString().split('T')[0];
+            const mondayOffset = monday.getTimezoneOffset();
+            const localMonday = new Date(monday.getTime() - mondayOffset * 60 * 1000);
+            const mStr = localMonday.toISOString().split('T')[0];
+
+            const sundayOffset = sunday.getTimezoneOffset();
+            const localSunday = new Date(sunday.getTime() - sundayOffset * 60 * 1000);
+            const sStr = localSunday.toISOString().split('T')[0];
 
             // Fetch and sum weekly entries
             const entries = await db.entries
@@ -240,8 +245,13 @@ export default function Home({
             const startOfMonth = new Date(y, m, 1);
             const endOfMonth = new Date(y, m + 1, 0);
 
-            const startStr = startOfMonth.toISOString().split('T')[0];
-            const endStr = endOfMonth.toISOString().split('T')[0];
+            const startOffset = startOfMonth.getTimezoneOffset();
+            const localStart = new Date(startOfMonth.getTime() - startOffset * 60 * 1000);
+            const startStr = localStart.toISOString().split('T')[0];
+
+            const endOffset = endOfMonth.getTimezoneOffset();
+            const localEnd = new Date(endOfMonth.getTime() - endOffset * 60 * 1000);
+            const endStr = localEnd.toISOString().split('T')[0];
 
             // Fetch and sum monthly entries
             const entries = await db.entries
