@@ -3,6 +3,8 @@
   <h1>HabitNook</h1>
   <p><em>Premium offline-first habit tracker with cloud sync.</em></p>
   
+  <h3>✨ <strong><a href="https://habitnook.vercel.app">Live Demo: habitnook.vercel.app</a></strong> ✨</h3>
+  
   [![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)](#)
   [![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)](#)
   [![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
